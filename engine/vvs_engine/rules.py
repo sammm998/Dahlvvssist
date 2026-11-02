@@ -175,6 +175,22 @@ RULES: tuple[Rule, ...] = (
          "Bladets anteckning \"radiatorer ansluts med dim. 12 om annat ej anges\" namnger korta onämnda grenar "
          "som möter ett värmerör. En längre onämnd sträcka är en ledning vars etikett inte nåddes.",
          "m", 6.0, 1.0, 20.0, None, True),
+    Rule("measure.scale.IMAGE_TEXT_SCALE_IS_MEASURED", G_SCALE, "Ett skannat blad mäts på sin skaltext",
+         "Ett blad läst ur en bild vars skala bara står i text mäts på den texten i stället för att ge noll meter. "
+         "Varje rad heter läst ur bild och ska granskas.",
+         "", True, None, None, None, True),
+    Rule("pipes.ownership.BEST_READING_AMONG_CANDIDATES", G_OWN, "Tvetydigt rör mäts under sin bästa läsning",
+         "En sträcka som flera etiketter pekar på mäts under det namn bladets etiketter stöder mest, och markeras "
+         "att granska med de andra kandidaterna utskrivna.",
+         "", True, None, None, None, True),
+    Rule("pipes.ownership.UNNAMED_RUNS_ARE_ROWS", G_OWN, "Onämnda rör blir egna rader att granska",
+         "Ritad rörgeometri som ingen etikett når mäts som \"Onämnt rör\" per penna, markerad att granska, "
+         "utanför den bekräftade summan.",
+         "", True, None, None, None, True),
+    Rule("pipes.ownership.UNNAMED_PEN_NAMED_SHARE", G_OWN, "Hur mycket av en penna som måste ha namn",
+         "En penna ritar bevisligen rör när minst denna andel av dess bläck fått ett namn. En bakgrundspenna med en "
+         "procent namn ger inga onämnda rader.",
+         "andel", 0.25, 0.0, 1.0, None, True),
     Rule("pipeline.PEER_FOLLOWS_THE_BEST_LAYERS", G_LEADER, "En jämlike heter som de bästa pennorna",
          "På ett blad med lagernamn tas en penna som rör bredvid de bästa bara om dess lager följer samma "
          "namnmall som deras - arkitektens väggar på ett annat lager är ingen jämlike till rören.",

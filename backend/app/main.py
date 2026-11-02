@@ -1195,6 +1195,8 @@ def job_result(job_id: str, page: int | None = Query(default=None, ge=0), user: 
     review = _load_optional(root, "review-findings.json") if page == (pages[0] if pages else 0) else None
     quantities = _load(rd, "quantities.json")
     pipes = _load(rd, "physical-pipes.json")["physical_pipes"]
+    # what the reading measured for review: drawn on the sheet with the review mark, alongside the reading's own
+    review_pipes = (_load_optional(rd, "review-pipes.json") or {}).get("review_pipes") or []
     issues = _load(rd, "unresolved-issues.json")["issues"]
     prof = _load(root, "drawing-profile.json")
     rec = _load(rd, "reconciliation.json")
@@ -1238,7 +1240,9 @@ def job_result(job_id: str, page: int | None = Query(default=None, ge=0), user: 
                            if k not in ("removed", "blank_text_spans")},
         "corrections_applied": layered["applied"] if corr else [],
         "corrected_total_m": layered["corrected_total_m"] if corr else None,
-        "pipes": [{k: v for k, v in p.items() if k not in ("source_segments",)} for p in pipes],
+        "pipes": [{k: v for k, v in p.items() if k not in ("source_segments",)} for p in pipes]
+                 + [{**{k: v for k, v in p.items() if k not in ("source_segments",)}, "needs_review": True,
+                     "for_review": True} for p in review_pipes],
         # in_wall: the mark sits inside a hatched area, and pipe length in a wall is already outside the
         # horizontal quantity - so a mark drawn there points at something the takeoff does not count.
         # names_a_pipe: false for a component tag, whose leader reaches a floor drain or a mixer, not a run.

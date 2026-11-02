@@ -110,6 +110,10 @@ class OwnershipResult:
     ambiguous_runs: list[dict]
     stats: dict[str, Any]
     riser_labels: dict[str, list[dict]] = field(default_factory=dict)   # identity key -> symbol-attached labels
+    # what the reading left in doubt or unnamed, measured all the same for review (include_for_review). Kept apart
+    # from `pipes` and from the primitive states: the reading itself is unchanged, these are its proposals.
+    review_pipes: list["PhysicalPipe"] = field(default_factory=list)
+    review_prims: set[tuple[str, int]] = field(default_factory=set)
 
 
 def identity_of(a: PipeCodeAnchor, dn_token_index: int | None) -> Identity:
@@ -1775,3 +1779,99 @@ def _order_polylines(g: PipeGraph, comp: list[int]) -> list[list[tuple[float, fl
             far = b2 if a2 == far else a2
         out.append(pts)
     return out
+
+
+# ---------------------------------------------------------------- det som ska granskas mäts ändå
+#
+# A run the reading could not settle used to stand outside the takeoff: in doubt between two names, or drawn on a
+# pipe pen with no name at all. The person reviewing then saw a grey line and a figure in a footnote, and the
+# metres were simply missing. Both are now measured and marked: the doubtful run under the name the sheet's labels
+# support most, the unnamed one as "unnamed pipe" on its pen - each wearing the review mark (needs_review), each
+# saying why. Nothing is made sure that was not: the reason travels with every metre.
+BEST_READING_AMONG_CANDIDATES = True
+BEST_READING_REASON = "best_reading_among_candidates"
+UNNAMED_RUNS_ARE_ROWS = True
+UNNAMED_REASON = "unnamed_drawn_run"
+# A pen is shown to draw pipe when at least this share of its ink carries a name. A background pen - walls drawn
+# in the pipes' width, hatching - carries a percent or two, and its strokes are not made into unnamed pipe.
+UNNAMED_PEN_NAMED_SHARE = 0.25
+
+
+def _pen_label(fk: str) -> str:
+    layer, _, style = fk.partition("|s|")
+    if layer:
+        return layer.rsplit("|", 1)[-1]
+    m = re.search(r"w([\d.]+)", style)
+    return f"penna {m.group(1)} pt" if m else "penna"
+
+
+def include_for_review(graphs: dict[str, PipeGraph], ownership: OwnershipResult, anchors, identities: dict,
+                       page: int, best: bool = True, unnamed: bool = True,
+                       named_share: float = UNNAMED_PEN_NAMED_SHARE) -> dict[str, int]:
+    """Measure what would otherwise be left out for review: see the note above. The pipes it makes go to
+    `ownership.review_pipes`; the reading's own states are not touched. Returns how many runs it took each way."""
+    from copy import copy
+    states = ownership.prim_states
+    proposal: dict[str, dict[int, PrimState]] = defaultdict(dict)
+    support: dict[tuple[str, int], Counter] = defaultdict(Counter)
+    for a in anchors:
+        ident = identities.get(a.anchor_id)
+        if ident is None:
+            continue
+        for fk, lst in _seed_prims(a, graphs).items():
+            for pid, _, _ in lst:
+                support[(fk, pid)][ident.key] += 1
+    changed: dict[str, set[int]] = defaultdict(set)
+    took = Counter()
+    for fk, g in graphs.items():
+        st = states.get(fk)
+        if not st:
+            continue
+        if best:
+            for comp in _unowned_components(g, st, lambda q: q.state == "AMBIGUOUS" and bool(q.candidates)):
+                cands = {i.key: i for pid in comp for i in st[pid].candidates}
+                score = Counter({k: 0 for k in cands})
+                for pid in comp:
+                    for k, n in support.get((fk, pid), {}).items():
+                        if k in score:
+                            score[k] += n
+                inside = set(comp)
+                nodes = {n for pid in comp for n in g.prim_nodes[pid]}
+                for pid, ns in g.prim_nodes.items():
+                    q = st[pid]
+                    if pid not in inside and q.state == "CONFIRMED" and q.identity is not None \
+                            and q.identity.key in score and nodes.intersection(ns):
+                        score[q.identity.key] += 1
+                ranked = sorted(score.items(), key=lambda kv: (-kv[1], kv[0]))
+                winner = cands[ranked[0][0]]
+                tie = len(ranked) > 1 and ranked[1][1] == ranked[0][1]
+                names = " | ".join(sorted(i.display for i in cands.values()))
+                for pid in comp:
+                    q = copy(st[pid])
+                    q.state, q.identity, q.tentative, q.reason = "CONFIRMED", winner, True, BEST_READING_REASON
+                    q.evidence = list(q.evidence or []) + [f"candidates:{names}"] + (["equal_support"] if tie else [])
+                    q.candidates = set()
+                    proposal[fk][pid] = q
+                    changed[fk].add(pid)
+                took["best_reading_runs"] += 1
+        if unnamed:
+            total = sum(p.seg.length for p in g.prims.values())
+            named = sum(g.prims[pid].seg.length for pid, q in st.items() if q.state == "CONFIRMED" and pid not in changed[fk])
+            if total <= 0 or named / total < named_share:
+                continue
+            label = _pen_label(fk)
+            ident = Identity(base=f"ONÄMNT {label}", dn=None, system="", display=f"Onämnt rör ({label})")
+            for comp in _unowned_components(g, st):
+                for pid in comp:
+                    q = copy(st[pid])
+                    q.state, q.identity, q.tentative, q.reason = "CONFIRMED", ident, True, UNNAMED_REASON
+                    proposal[fk][pid] = q
+                    q.evidence = list(q.evidence or []) + ["no_label_reached_this_run"]
+                    changed[fk].add(pid)
+                took["unnamed_runs"] += 1
+    for fk, pids in changed.items():
+        only = {pid: proposal[fk].get(pid) or PrimState() for pid in graphs[fk].prims}
+        ownership.review_pipes.extend(_build_pipes(graphs[fk], only, fk, page))
+        ownership.review_prims.update((fk, pid) for pid in pids)
+    ownership.review_pipes.sort(key=lambda p: p.physical_pipe_id)
+    return dict(took)

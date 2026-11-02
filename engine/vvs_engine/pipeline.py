@@ -1942,6 +1942,19 @@ def analyze_page(page: RawPage, progress: Callable[[str], None] | None = None, o
             ownership = propagate(graphs, anchors, page.info.index, identities, spelled_out,
                               declared=declarations.connection_pipes, declared_max_pt=declared_max_pt, branches=branch_rule, end_evidence=end_ev)
         _close_labels_on_owned_runs(anchors, ownership, graphs)
+    # what the reading could not settle is measured all the same, under its best reading or as unnamed pipe, and
+    # marked to be reviewed (pipes.ownership.include_for_review)
+    from .pipes.ownership import (BEST_READING_AMONG_CANDIDATES, UNNAMED_PEN_NAMED_SHARE, UNNAMED_RUNS_ARE_ROWS,
+                                  include_for_review)
+    review_taken = include_for_review(
+        graphs, ownership, anchors, _identities_now(), page.info.index,
+        best=_R("pipes.ownership.BEST_READING_AMONG_CANDIDATES", BEST_READING_AMONG_CANDIDATES),
+        # in the widened reading of "Alla" every discipline's lines are open to the labels, and what no label
+        # names there is mostly not pipe at all: no unnamed rows
+        unnamed=_R("pipes.ownership.UNNAMED_RUNS_ARE_ROWS", UNNAMED_RUNS_ARE_ROWS) and not other_runs,
+        named_share=_R("pipes.ownership.UNNAMED_PEN_NAMED_SHARE", UNNAMED_PEN_NAMED_SHARE))
+    if review_taken:
+        ownership.stats.update(review_taken)
     film.pipes(ownership.pipes)
     t0 = _t(timings, "physical_pipes_ms", t0)
     if progress:
@@ -1996,7 +2009,7 @@ def analyze_page(page: RawPage, progress: Callable[[str], None] | None = None, o
             hatched_pt[pp.physical_pipe_id] = tot
     if from_image:
         from .raster import RASTER_FLAG
-        for pp in ownership.pipes:
+        for pp in list(ownership.pipes) + list(ownership.review_pipes):
             pp.needs_review = True
             if RASTER_FLAG not in pp.flags:
                 pp.flags.append(RASTER_FLAG)

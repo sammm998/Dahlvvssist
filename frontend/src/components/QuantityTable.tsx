@@ -8,7 +8,7 @@ import { t as tr } from "../i18n";
 const STATE_LABELS: Record<string, string> = { CONFIRMED: tr("BEKRÄFTAD"), AMBIGUOUS: tr("TVETYDIG"), NO_SCALE: tr("INGEN SKALA"),
   SCALE_UNSETTLED: "OAVGJORD SKALA", SCALE_FROM_THE_SET: "SKALA UR OMGÅNGEN", SCALE_FROM_PIPES: "SKALA MÄTT PÅ RÖREN", SCALE_MEASURED: "SKALA MÄTT PÅ BLADET", SCALE_GIVEN_BY_HAND: "ANGIVEN SKALA",
   UNSUPPORTED_STYLE: tr("EJ STÖDD STIL"), RISER_LABELS_ONLY: tr("ENDAST STIGARE"), IN_HATCHED_AREA: tr("I SKRAFFERAD YTA"),
-  READ_FROM_IMAGE: tr("LÄST UR BILD") };
+  READ_FROM_IMAGE: tr("LÄST UR BILD"), UNNAMED: tr("ONÄMNT – GRANSKA") };
 
 /* En rad utan skala har ingen meter - och noll är inte samma sak som okänt. Tabellen skrev 0,00 i varje
    meterkolumn på ett blad vars skala aldrig blev fastställd, vilket läses som "röret är noll meter långt"
@@ -152,7 +152,10 @@ export default function QuantityTable({ rows, selected, onSelect, floorHeight, i
                   rör kommer upp ur golvet och dras vidare längs väggen, och då finns ledningen och läsningen
                   kan ha missat den. Strecket säger att ingen vågrät sträcka hittades, utan att påstå vilket
                   av de två fallen det är. */}
-              <td className="num">{r.state === "IN_HATCHED_AREA" && !(r.horizontal_calc > 0)
+              <td className="num">{r.state === "UNNAMED"
+                ? <span className="assumed" title={tr("Ritat rör som ingen beteckning når. Metrarna är mätta och sträckorna visas streckade med gul kant på ritningen, men de ingår inte i totalen förrän någon gett dem ett namn.")}>
+                    {M(r.unnamed_review_m, noScale)} {tr("onämnt")}</span>
+                : r.state === "IN_HATCHED_AREA" && !(r.horizontal_calc > 0)
                 ? <span className="muted" title={`Hela stråket är ritat inne i en skrafferad yta (${Number(r.in_hatched_area_m ?? 0).toFixed(2)} m). Skrafferingen är hur ritningen säger att en del inte redovisas här - en angränsande byggnadsdel eller ett annat skede - och mängden räknar inte i den. Bocka i "Räkna med skrafferade ytor" om den här ritningen menar något annat med sin skraffering.`}>–</span>
                 : r.state === "RISER_LABELS_ONLY" && !(r.horizontal_calc > 0)
                 ? <span className="muted" title={tr("Ingen vågrät sträcka hittad för den här etiketten. Den märker ett rör som går genom bjälklaget: antingen slutar det där (en vask, en golvbrunn) och det finns ingen ledning i planet, eller så fortsätter det längs väggen och läsningen har inte hittat den. Ritningen avgör det med strecket vid dimensionssiffran.")}>–</span>
@@ -176,6 +179,11 @@ export default function QuantityTable({ rows, selected, onSelect, floorHeight, i
                 {!noScale && (r.review_m ?? 0) > 0.005 && (
                   <span className="assumed" title={`${Number(r.review_m).toFixed(2)} m är mätta på bästa läsningen och bör kontrolleras på bladet. De visas streckade med gul kant.`}> varav {Number(r.review_m).toFixed(1)} att granska</span>
                 )}
+                {/* a run the labels left in doubt, measured under this name as the best reading: shown on the row
+                    and on the sheet, but not in the total until someone has looked at it */}
+                {!noScale && (r.proposed_review_m ?? 0) > 0.005 && (
+                  <span className="assumed" title={`${Number(r.proposed_review_m).toFixed(2)} m pekas ut av flera beteckningar. De är mätta under den här, som har störst stöd, och visas streckade med gul kant. De ingår inte i totalen förrän någon har granskat dem.`}> + {Number(r.proposed_review_m).toFixed(1)} {tr("att granska")}</span>
+                )}
                 {!noScale && (r.inferred_m ?? 0) > 0.005 && (
                   <span className="assumed" title={`${Number(r.inferred_m).toFixed(2)} m har sitt namn härlett ur ritningens logik (fortsätter från ett namngivet rör, självfallsledningens nivåer, värdläsningen) snarare än från en egen etikett. Lagret Säkerhet visar dem gula.`}> · {Number(r.inferred_m).toFixed(1)} härlett</span>
                 )}</td>
@@ -195,7 +203,7 @@ export default function QuantityTable({ rows, selected, onSelect, floorHeight, i
                   </span>
                 )}
               </td>
-              <td><span className={`badge ${r.state === "CONFIRMED" ? "ok" : r.state === "AMBIGUOUS" || r.state === "RISER_LABELS_ONLY" || r.state === "IN_HATCHED_AREA" ? "warn" : "bad"}`}>{r.state === "NO_SCALE" && schematic ? tr("SCHEMA") : STATE_LABELS[r.state] ?? r.state}</span></td>
+              <td><span className={`badge ${r.state === "CONFIRMED" ? "ok" : r.state === "AMBIGUOUS" || r.state === "RISER_LABELS_ONLY" || r.state === "IN_HATCHED_AREA" || r.state === "UNNAMED" ? "warn" : "bad"}`}>{r.state === "NO_SCALE" && schematic ? tr("SCHEMA") : STATE_LABELS[r.state] ?? r.state}</span></td>
             </tr>,
             ...(open === identityKey(r)
               ? runRows(pipes.filter((p: any) => p.identity === identityKey(r)), runs)

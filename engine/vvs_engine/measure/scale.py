@@ -10,6 +10,7 @@ from typing import Any
 from ..geometry.core import GridIndex, Seg, bbox_expand, dist, point_seg_distance
 from ..pdf.extract import RawPage
 from ..text.model import TextRow, project, row_axes
+from .. import rules as _rules
 
 MM_PER_PT = 25.4 / 72.0
 SCHEMATIC_RE = re.compile(r"(?i)^\s*(FLÖDES|FLODES|PRINCIP|SYSTEM|FUNKTIONS)\s*-?\s*SCHEMA\b")
@@ -131,6 +132,9 @@ def scale_given_by_hand(known: float, sheet_said: str, source: str = "angiven av
 # krymper med bladet om skannern krympte det; en skaltext gör det inte - "1:50" står kvar fast bladet nu är
 # hälften så stort. Ett blad som inte når hit mäts inte förrän någon anger skalan.
 MEASURED_ON_THE_SHEET = ("VERIFIED", "BAR_ONLY", "DIMENSIONS_ONLY", "CONFLICT")
+# what the sheet's own text says (its stamp, or the set's): measured on, and reviewed, rather than left at zero
+TEXT_SCALES_FROM_IMAGE = ("TEXT_ONLY", "FROM_THE_SET")
+IMAGE_TEXT_SCALE_IS_MEASURED = True
 
 
 def scale_read_from_image(found: ScaleResult) -> ScaleResult:
@@ -145,6 +149,13 @@ def scale_read_from_image(found: ScaleResult) -> ScaleResult:
     den som anger skalan för hand ser vad bladet påstod."""
     if found.meters_per_pt is None or found.state in MEASURED_ON_THE_SHEET:
         return found
+    # ...men en skala som står i bladets egen text mäter ändå. Utan den blev en skannad plan noll meter, och
+    # det som skulle granskas syntes inte alls. Med den mäts bladet på vad stämpeln säger, varje rad heter
+    # READ_FROM_IMAGE och ska granskas, och skälet säger att skalan inte kunde mätas i bilden.
+    if found.state in TEXT_SCALES_FROM_IMAGE and _rules.value("measure.scale.IMAGE_TEXT_SCALE_IS_MEASURED",
+                                                              IMAGE_TEXT_SCALE_IS_MEASURED):
+        return ScaleResult(found.meters_per_pt, found.scope, found.state, found.evidence,
+                           f"read_from_image_scale_from_text_only_review ({found.state}: {found.reason})")
     return ScaleResult(None, "none", "NONE", found.evidence,
                        f"read_from_image_scale_not_measured_on_the_sheet (was {found.state}: {found.reason})")
 

@@ -148,7 +148,9 @@ def _read(path):
 
 
 def _rows(pa):
-    return [(q["designation"], q.get("dn"), q.get("confirmed_total_m")) for q in pa.quantities]
+    # the measured rows: unnamed pipe set out for review is a proposal, and "Alla" makes none
+    return [(q["designation"], q.get("dn"), q.get("confirmed_total_m")) for q in pa.quantities
+            if q.get("state") != "UNNAMED"]
 
 
 def test_a_duct_drawn_as_its_two_edges_is_measured_once_under_its_name(tmp_path):

@@ -453,6 +453,7 @@ def document_quantities(sheets: list[dict]) -> dict[str, Any]:
                                       "sheets": [], "pipe_ids": [], "label_count": 0, "physical_pipe_count": 0,
                                       "confirmed_horizontal_m": 0.0, "confirmed_vertical_m": 0.0,
                                       "confirmed_total_m": 0.0, "ambiguous_m": 0.0, "review_m": 0.0, "in_hatched_area_m": 0.0,
+                                      "unnamed_review_m": 0.0, "proposed_review_m": 0.0, "state": q.get("state"),
                                       "riser_count": 0, "riser_count_from_labels": 0})
             r["sheets"].append(sh.get("page"))
             if q.get("riser_height_m") is not None:
@@ -465,16 +466,17 @@ def document_quantities(sheets: list[dict]) -> dict[str, Any]:
             for k in ("label_count", "physical_pipe_count", "riser_count", "riser_count_from_labels"):
                 r[k] += int(q.get(k) or 0)
             for k in ("confirmed_horizontal_m", "confirmed_vertical_m", "confirmed_total_m", "ambiguous_m",
-                      "in_hatched_area_m", "review_m"):
+                      "in_hatched_area_m", "review_m", "unnamed_review_m", "proposed_review_m"):
                 r[k] += float(q.get(k) or 0.0)
     out_rows = []
     for r in sorted(rows.values(), key=lambda r: (r["designation"] or "", r["dn"] if r["dn"] is not None else -1)):
         out_rows.append({**r, "sheets": sorted(set(r["sheets"])), "pipe_ids": sorted(set(r["pipe_ids"])),
                          **{k: round(r[k], 2) for k in ("confirmed_horizontal_m", "confirmed_vertical_m",
-                                                        "confirmed_total_m", "ambiguous_m", "in_hatched_area_m", "review_m")}})
+                                                        "confirmed_total_m", "ambiguous_m", "in_hatched_area_m", "review_m",
+                                                        "unnamed_review_m", "proposed_review_m")}})
     totals = {k: round(sum(r[k] for r in out_rows), 2)
               for k in ("confirmed_horizontal_m", "confirmed_vertical_m", "confirmed_total_m", "ambiguous_m",
-                        "in_hatched_area_m", "review_m")}
+                        "in_hatched_area_m", "review_m", "unnamed_review_m", "proposed_review_m")}
     totals.update({"m_under_an_unsettled_scale": round(unsettled_m, 2),
                    "designations": len(out_rows), "sheets": len(sheets),
                    "physical_pipes": sum(r["physical_pipe_count"] for r in out_rows),
@@ -488,7 +490,7 @@ def document_quantities(sheets: list[dict]) -> dict[str, Any]:
 SHEET_FILES = ("vector-designations.json", "leader-forensics.json", "leader-family-report.json",
                "pipe-code-anchors.json", "pipe-representation-families.json", "pipe-geometry-inventory.json",
                "drawn-system-families.json", "declined-geometry.json", "pipe-topology.json",
-               "physical-pipes.json", "pipe-extent-frontiers.json", "quantities.json",
+               "physical-pipes.json", "review-pipes.json", "pipe-extent-frontiers.json", "quantities.json",
                "unresolved-issues.json", "evidence-graph.json", "reconciliation.json",
                "coverage-validity.json", "route-crosscheck.json", "reading-review.json",
                "drawing-legend.json", "drawing-declarations.json", "cad-layer-map.json", "page.json",
@@ -588,7 +590,14 @@ def sheet_reading(pa, doc, doc_legend=None, profile: dict | None = None,
     out["pipe-topology.json"] = {"families": [{"family": fk, "nodes": [{"id": n.nid, "x": round(n.x, 2), "y": round(n.y, 2), "degree": n.degree, "prims": n.prims} for n in g.nodes.values()],
                                                "edges": [{"prim": pid, "a": ab[0], "b": ab[1]} for pid, ab in g.prim_nodes.items()], "bridges": g.bridges, "junctions": g.junctions, "gap_mode": g.gap_mode}
                                               for fk, g in pa.graphs.items()]}
-    out["physical-pipes.json"] = {"physical_pipes": [physical_pipe_dict(m) for m in pa.measures]}
+    # the reading's own pipes, and apart from them what it measured for review (include_for_review): the agent,
+    # corrections and learned rules work on the reading's pipes, and the viewer draws both
+    from ..pipes.ownership import BEST_READING_REASON, UNNAMED_REASON
+    def _for_review(m) -> bool:
+        ev = m.pipe.evidence or []
+        return UNNAMED_REASON in ev or BEST_READING_REASON in ev
+    out["physical-pipes.json"] = {"physical_pipes": [physical_pipe_dict(m) for m in pa.measures if not _for_review(m)]}
+    out["review-pipes.json"] = {"review_pipes": [physical_pipe_dict(m) for m in pa.measures if _for_review(m)]}
     out["pipe-extent-frontiers.json"] = extent_frontiers(pa)
     out["quantities.json"] = {"scale": pa.scale.as_dict(), "rows": pa.quantities,
                               "totals": {"physical_pipes": len(pa.measures),

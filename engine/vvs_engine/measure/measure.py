@@ -7,7 +7,7 @@ from typing import Any
 
 import math
 
-from ..pipes.ownership import OwnershipResult, PhysicalPipe, DECLARED_REASON
+from ..pipes.ownership import OwnershipResult, PhysicalPipe, DECLARED_REASON, UNNAMED_REASON, BEST_READING_REASON
 from ..pipes.confidence import tier, REVIEW, INFERRED
 from .scale import ScaleResult
 
@@ -306,7 +306,8 @@ def measure_pipes(own: OwnershipResult, scale: ScaleResult, elevations: dict[str
                   if scale.state not in ("VERIFIED",) and mpp is not None else None)
     standing = scale_standing(scale)
     twins = twin_overlap_pt(own.pipes, mpp)
-    for p in own.pipes:
+    # the reading's own pipes, and what it left for review measured all the same (marked, see include_for_review)
+    for p in list(own.pipes) + list(getattr(own, "review_pipes", ()) or ()):
         # hatched length is measured on drawn primitives; scale it by the bridged-gap share of the run
         factor = (p.length_pt / p.raw_length_pt) if p.raw_length_pt > 0 else 1.0
         hpt = min((hatched_pt or {}).get(p.physical_pipe_id, 0.0) * factor, p.length_pt)
@@ -407,8 +408,25 @@ def aggregate(measures: list[PipeMeasure], ambiguous_pt: dict[str, float], mpp: 
         r["double_line_m"] += getattr(m, "own_edge_pdf_units", 0.0) * mpp if mpp else 0.0
         if m.horizontal_m is not None and DECLARED_REASON in (m.pipe.evidence or []):
             r["declared_m"] += m.horizontal_m       # named by the sheet's written rule, not by a label
-        r["horizontal_pdf_units"] += m.horizontal_pdf_units
         r["pipe_ids"].append(m.pipe.physical_pipe_id)
+        # what was measured for review keeps its drawn length apart: a recalculation from the row's drawn units
+        # (a correction, a new scale) must not turn a proposal into confirmed metres
+        if UNNAMED_REASON in (m.pipe.evidence or []) or BEST_READING_REASON in (m.pipe.evidence or []):
+            r["review_pdf_units"] = r.get("review_pdf_units", 0.0) + m.horizontal_pdf_units
+        else:
+            r["horizontal_pdf_units"] += m.horizontal_pdf_units
+        if UNNAMED_REASON in (m.pipe.evidence or []):
+            # drawn pipe no label named: measured and shown, to be reviewed - never part of the confirmed figure
+            r["state"] = "UNNAMED"
+            r["unnamed_review_m"] = r.get("unnamed_review_m", 0.0) + (m.horizontal_m or 0.0)
+            continue
+        if BEST_READING_REASON in (m.pipe.evidence or []):
+            # a run in doubt, measured under the name its labels support most: on the row, to be reviewed, and
+            # outside the confirmed figure - the labels did not settle it, the reading proposes it
+            r["proposed_review_m"] = r.get("proposed_review_m", 0.0) + (m.horizontal_m or 0.0)
+            if r["physical_pipe_count"] == 1 and r["state"] == "CONFIRMED" and not r["confirmed_horizontal_m"]:
+                r["state"] = "AMBIGUOUS"
+            continue
         if m.horizontal_m is not None:
             r["confirmed_horizontal_m"] += m.horizontal_m
             r["confirmed_total_m"] += m.horizontal_m
@@ -463,6 +481,8 @@ def aggregate(measures: list[PipeMeasure], ambiguous_pt: dict[str, float], mpp: 
         r.setdefault("ambiguous_pdf_units", 0.0)
         r.setdefault("review_m", 0.0)
         r.setdefault("inferred_m", 0.0)
+        r.setdefault("unnamed_review_m", 0.0)
+        r.setdefault("proposed_review_m", 0.0)
         if r["physical_pipe_count"] == 0 and r["ambiguous_pdf_units"] == 0 \
                 and max(r["riser_count"], r["riser_count_from_labels"]) > 0:
             r["state"] = "RISER_LABELS_ONLY"
@@ -473,7 +493,7 @@ def aggregate(measures: list[PipeMeasure], ambiguous_pt: dict[str, float], mpp: 
         r.pop("hatched_only_pipes", None)
         for f in ("confirmed_horizontal_m", "confirmed_vertical_m", "confirmed_total_m", "ambiguous_m",
                   "horizontal_pdf_units", "in_hatched_area_m", "ambiguous_pdf_units", "double_line_m", "review_m",
-                  "inferred_m"):
+                  "inferred_m", "unnamed_review_m", "proposed_review_m"):
             r[f] = round(r[f], 3)
         r["vertical_m"] = r["confirmed_vertical_m"] if r["vertical_known"] else "UNKNOWN"
         h = slab_riser_height(r)

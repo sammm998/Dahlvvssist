@@ -91,7 +91,7 @@ def test_a_scanned_sheet_measures_what_its_vector_twin_measures_and_all_of_it_is
 
 
 @needs_pixels
-def test_a_scan_whose_scale_is_only_printed_is_not_measured_until_someone_gives_the_scale(
+def test_a_scan_whose_scale_is_only_printed_is_measured_on_it_and_reviewed(
         synthetic_pdf, tmp_path, offline):
     if not _ocr():
         pytest.skip("tesseract behövs för att läsa bladets text")
@@ -104,12 +104,12 @@ def test_a_scan_whose_scale_is_only_printed_is_not_measured_until_someone_gives_
     scan = _scan(text_only, str(tmp_path / "text-scale-scan.pdf"))
 
     got = _read(scan, tmp_path / "unscaled")
-    assert got["q"]["scale"]["state"] == "NONE", got["q"]["scale"]
-    assert "read_from_image" in got["q"]["scale"]["reason"] and "TEXT_ONLY" in got["q"]["scale"]["reason"]
-    assert got["q"]["rows"] and all(r["state"] == "NO_SCALE" for r in got["q"]["rows"])
-    # what the sheet printed is still there to see, for whoever sets the scale
+    # measured on what the stamp says, and every row is the reading of an image, to be reviewed
+    assert got["q"]["scale"]["state"] == "TEXT_ONLY", got["q"]["scale"]
+    assert "read_from_image" in got["q"]["scale"]["reason"] and "review" in got["q"]["scale"]["reason"]
+    assert got["q"]["rows"] and all(r["state"] == "READ_FROM_IMAGE" for r in got["q"]["rows"])
     assert any(e["kind"] == "scale_text" for e in got["q"]["scale"]["evidence"])
-    assert "NO_SCALE" in got["quality"]["reasons"] and "READ_FROM_IMAGE" in got["quality"]["reasons"]
+    assert "READ_FROM_IMAGE" in got["quality"]["reasons"]
 
     by_hand = _read(scan, tmp_path / "given", given_scale={0: 50 * 25.4 / 72 / 1000})
     assert by_hand["q"]["scale"]["state"] == "GIVEN_BY_HAND"
@@ -173,17 +173,26 @@ def _ev(kind="scale_text"):
     return [ScaleEvidence(kind=kind, text="SKALA 1:50", bbox=[0, 0, 1, 1], value=0.0176)]
 
 
-@pytest.mark.parametrize("state,kept", [("VERIFIED", True), ("BAR_ONLY", True), ("DIMENSIONS_ONLY", True),
-                                        ("CONFLICT", True), ("TEXT_ONLY", False), ("FROM_PIPES", False),
-                                        ("FROM_THE_SET", False)])
-def test_only_a_scale_measured_on_the_sheet_holds_for_a_sheet_read_from_pixels(state, kept):
+@pytest.mark.parametrize("state,kept", [("VERIFIED", "as is"), ("BAR_ONLY", "as is"), ("DIMENSIONS_ONLY", "as is"),
+                                        ("CONFLICT", "as is"), ("TEXT_ONLY", "review"), ("FROM_PIPES", "none"),
+                                        ("FROM_THE_SET", "review")])
+def test_a_scale_read_from_pixels_holds_when_measured_and_is_reviewed_when_only_written(state, kept):
     found = ScaleResult(0.0176, "page", state, _ev(), "why")
     got = scale_read_from_image(found)
-    if kept:
+    if kept == "as is":
         assert got is found
+    elif kept == "review":
+        assert got.meters_per_pt == found.meters_per_pt and got.state == state and "review" in got.reason
     else:
         assert got.meters_per_pt is None and got.state == "NONE" and state in got.reason
         assert got.evidence == found.evidence
+
+
+def test_with_the_rule_off_a_written_scale_on_a_scan_is_no_scale():
+    from vvs_engine import rules
+    with rules.using({"measure.scale.IMAGE_TEXT_SCALE_IS_MEASURED": False}):
+        got = scale_read_from_image(ScaleResult(0.0176, "page", "TEXT_ONLY", _ev(), "why"))
+    assert got.meters_per_pt is None and got.state == "NONE"
 
 
 def test_no_scale_stays_no_scale():

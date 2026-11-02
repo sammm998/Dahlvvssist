@@ -253,6 +253,26 @@ S och 5, I och 1, B och 8). Dessa regler gör att ett sådant blad mängdas i st
 Ett inskannat blad med samma stämpel får ingen skala ur bilden: där skrivs skalan in för hand, och mängden granskas
 alltid.
 
+### 2e. Det som ska granskas mäts och markeras ändå
+
+Det läsningen inte kan avgöra lämnades tidigare utanför: ett rör två etiketter namnger olika stod "påpekat men
+onämnt", ett rör på en rörpenna som ingen etikett når var en grå linje och en siffra, och ett skannat blad vars
+skala bara stod i stämpeln blev noll meter. Nu mäts det och markeras att granska, utan att något kallas
+bekräftat som inte är det.
+
+* **Skannat blad med skaltext** (`measure.scale.IMAGE_TEXT_SCALE_IS_MEASURED`). Bladet mäts på skaltexten. Varje rad
+  heter LÄST UR BILD och skälet säger att skalan inte kunde mätas i bilden.
+* **Bästa läsning bland kandidater** (`pipes.ownership.BEST_READING_AMONG_CANDIDATES`). En tvetydig sträcka mäts under
+  det namn bladets etiketter stöder mest (etiketter på sträckan, namngivna grannsträckor). Metrarna står på
+  namnets rad som `proposed_review_m`, "+ X att granska", utanför den bekräftade summan. Kandidaterna skrivs på
+  sträckan, som ritas streckad med gul kant. Den tvetydiga redovisningen (`ambiguous_m`) står kvar.
+* **Onämnt rör** (`pipes.ownership.UNNAMED_RUNS_ARE_ROWS`, `UNNAMED_PEN_NAMED_SHARE` 25 %). Onämnda sträckor på en
+  penna där minst en fjärdedel av bläcket har namn blir raden "Onämnt rör (penna)", `unnamed_review_m`, utanför den
+  bekräftade summan. En bakgrundspenna ger ingen rad. I läget "Alla" görs inga sådana rader.
+* Läsningens egna tillstånd ändras inte. Förslagen byggs vid sidan av (`OwnershipResult.review_pipes`) och skrivs
+  till `review-pipes.json`. Agenten, rättelserna och de inlärda reglerna arbetar på läsningens egna rör, och
+  vyn ritar båda.
+
 ## 3. Vilka AI-modeller som används, och exakt hur
 
 Det här är det viktigaste avsnittet att läsa rätt, så det är rakt.

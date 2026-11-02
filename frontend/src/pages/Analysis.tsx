@@ -1032,6 +1032,12 @@ export default function AnalysisPage() {
                 ? <div className="card"><div className="v">{sum("vertical_calc").toFixed(1)} m</div><div className="l">Vertikalt · {risers} st × {String(floorH).replace(".", ",")} m</div></div>
                 : <div className="card"><div className="v">{risers} st</div><div className="l">{tr("Stigare · ange våningshöjd för meter")}</div></div>}
               <div className="card"><div className="v">{sum("total_calc").toFixed(1)} m</div><div className="l">Totalt</div></div>
+              {sum("proposed_review_m") > 0.05 && (
+                <div className="card" title={tr("Rör som flera beteckningar pekar på, mätta under den med störst stöd: markerade på ritningen, men inte med i totalen.")}>
+                  <div className="v">{sum("proposed_review_m").toFixed(1)} m</div><div className="l">{tr("Tvetydigt, mätt att granska")}</div></div>)}
+              {sum("unnamed_review_m") > 0.05 && (
+                <div className="card" title={tr("Ritat rör som ingen beteckning når: mätt och markerat på ritningen, men inte med i totalen.")}>
+                  <div className="v">{sum("unnamed_review_m").toFixed(1)} m</div><div className="l">{tr("Onämnt rör att granska")}</div></div>)}
               <div className="card"><div className="v">{result.totals.ambiguous_m.toFixed(1)} m</div><div className="l">Tvetydigt</div></div>
               <div className="card"><div className="v">{c.claimed_m ?? "?"} m</div><div className="l">{tr("Påpekad men onämnd")}</div></div>
               <div className="card"><div className="v">{c.unowned_m ?? "?"} m</div><div className="l">{tr("Oidentifierad geometri")}</div></div>

@@ -27,6 +27,9 @@ def test_a_single_label_and_a_size_qualifier_are_read_as_before():
     assert identity_from_text("KV2-K1-35", 35, "KV2", None).base == "KV2-K1"
     assert identity_from_text("VV1-K1-22/W", 22, "VV1", None).base == "VV1-K1-W"
     assert identity_from_text("S3-R8-110", 110, "S3", None).base == "S3-R8"
+    # a qualifier after a slash is no second pipe: both ways of writing the insulation class are one pipe
+    assert identity_from_text("KV1-K1/S2-22", 22, "KV1", None).base == identity_from_text(
+        "KV1-K1-22/S2", 22, "KV1", None).base
 
 
 def _entry(code, description, y):

@@ -141,7 +141,8 @@ def sheet_record(pa) -> dict:
                                               "physical_pipe_count", "confirmed_horizontal_m",
                                               "confirmed_vertical_m", "confirmed_total_m", "ambiguous_m",
                                               "in_hatched_area_m", "riser_count", "riser_count_from_labels",
-                                              "riser_height_m", "pipe_ids")}
+                                              "riser_height_m", "pipe_ids", "review_m", "unnamed_review_m",
+                                              "proposed_review_m")}
                        for q in pa.quantities],
         "second_reader": pa.second_reader,
         "source_assignment": {k: v for k, v in (pa.source_assignment or {}).items()

@@ -22,7 +22,9 @@ import AnalysisQuality, { ReadFromImage } from "../components/AnalysisQuality";
 import DrawingDeclarations from "../components/DrawingDeclarations";
 import ReferenceComparison from "../components/ReferenceComparison";
 import Markups, { type MarkDraft, type MarkTool } from "../components/Markups";
-import Corrections, { Draft } from "../components/Corrections";
+import Corrections, { Draft, ShapeEdit } from "../components/Corrections";
+import { InkIndex, pageInk } from "../cad/pagesnap";
+import { defaultSnaps } from "../cad/model";
 import LegendView from "../components/LegendView";
 import AllDesignations from "../components/AllDesignations";
 import Reasoning from "../components/Reasoning";
@@ -120,6 +122,27 @@ export default function AnalysisPage() {
     try { localStorage.setItem("vvs.panelOpen", v ? "1" : "0"); } catch { /* private window */ }
   };
   const [draft, setDraft] = useState<Draft>(null);
+  // ett sparat streck som böjs i efterhand (rättelse eller markering)
+  const [shape, setShape] = useState<ShapeEdit>(null);
+  /* Fästning mot ritningens egna linjer när man ritar eller böjer ett streck: en punkt som hamnar bredvid röret
+   * mäter fel utan att något tal säger det. Bladets streck läses en gång per sida, och bara när något ritas. */
+  const [snapOn, setSnapOn] = useState(true);
+  const [sheetInk, setInkIndex] = useState<InkIndex | null>(null);
+  const drawingNow = !!shape || tab === "rattelser" || tab === "markera";
+  useEffect(() => {
+    setInkIndex(null);
+    if (!pdf || !drawingNow) return;
+    let dead = false;
+    (async () => {
+      try {
+        const pdfjs = await import("pdfjs-dist");
+        const doc = await pdfjs.getDocument({ data: pdf.slice(0) }).promise;
+        const segs = await pageInk(await doc.getPage(page + 1));
+        if (!dead) setInkIndex(new InkIndex(segs));
+      } catch { /* utan bladets streck ritas det fritt, som förut */ }
+    })();
+    return () => { dead = true; };
+  }, [pdf, page, drawingNow]);
   const [show3d, setShow3d] = useState(false);
   /* Skalan någon skriver in för ett blad vars egen stämpel inte räckte. Den startar en ny läsning - mängden
      räknas om från början under den skalan - i stället för att skala om en tabell efteråt, så att varje tal på
@@ -635,7 +658,15 @@ export default function AnalysisPage() {
           onDrawn={(d: Drawn) => tab === "markera"
             ? setMarkDraft({ points: d.points, meters: d.meters })
             : setDraft({ points: d.points, meters: d.meters, hits: d.hits })}
-          corrections={corrections.filter((c: any) => !c.undone && c.page === page)} /></Boundary>
+          corrections={corrections.filter((c: any) => !c.undone && c.page === page && c.id !== shape?.id)}
+          pageInk={snapOn ? sheetInk : null} snap={{ ...defaultSnaps, grid: 0, on: snapOn }}
+          editLine={shape
+            ? { points: shape.points, onChange: (points, meters) => setShape({ ...shape, points, meters }) }
+            : tab === "rattelser" && draft && drawKind !== "erase"
+            ? { points: draft.points, onChange: (points, meters) => setDraft({ ...draft, points, meters }) }
+            : tab === "markera" && markDraft && (markTool === "langd" || markTool === "area")
+            ? { points: markDraft.points, onChange: (points, meters) => setMarkDraft({ ...markDraft, points, meters }) }
+            : null} /></Boundary>
       </div>
       <div className="splitter" role="separator" aria-orientation="vertical" aria-label={tr("Dra för att ändra bredd")}
         onMouseDown={() => { dragging.current = true; document.body.classList.add("resizing"); }}
@@ -979,10 +1010,17 @@ export default function AnalysisPage() {
               setResult(await api.result(id!, page));
             }} />
         )}
+        {(tab === "rattelser" || tab === "markera") && (
+          <label className="small muted" style={{ display: "block", margin: "0 0 6px" }}
+            title={tr("Punkter du sätter eller drar fäster mot ritningens egna linjer, ändpunkter och skärningar")}>
+            <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} /> {tr("Fäst mot ritningen")}
+            {snapOn && !sheetInk && <span> · {tr("läser bladets linjer…")}</span>}
+          </label>
+        )}
         {tab === "rattelser" && (
           <Corrections drawingId={job.drawing_id} jobId={id!} page={page} quantities={result.quantities}
             corrections={corrections} draft={draft} kind={drawKind} pipe={selPipe} proposals={result.proposals ?? []}
-            onKindChange={setDrawKind} onDraftClear={() => setDraft(null)}
+            onKindChange={setDrawKind} onDraftClear={() => setDraft(null)} shape={shape} onShape={setShape}
             onChanged={async () => {
               setCorrections(await api.corrections(job.drawing_id));
               setResult(await api.result(id!, page));
@@ -991,7 +1029,8 @@ export default function AnalysisPage() {
         {tab === "markera" && (
           <Markups drawingId={job.drawing_id} page={page} tool={markTool} draft={markDraft}
             meterPerPt={result.scale?.meters_per_pdf_point ?? null}
-            onToolChange={setMarkTool} onDraftClear={() => setMarkDraft(null)} onChanged={setMarkups} />
+            onToolChange={setMarkTool} onDraftClear={() => setMarkDraft(null)} onChanged={setMarkups}
+            shape={shape} onShape={setShape} />
         )}
         {tab === "oversikt" && (() => {
           // The overview used to read the engine's raw totals while the table beside it read the same numbers

@@ -817,6 +817,40 @@ def add_correction(drawing_id: str, body: CorrectionIn, user: User = Depends(cur
     return _correction_out(c)
 
 
+class CorrectionShape(BaseModel):
+    points: list[list[float]]
+    meters: float | None = None
+
+
+@app.put("/api/drawings/{drawing_id}/corrections/{correction_id}/shape")
+def reshape_correction(drawing_id: str, correction_id: str, body: CorrectionShape, user: User = Depends(current_user),
+                       db: Session = Depends(get_db)):
+    """A drawn correction bent to follow the pipe: its points and the metres they measure, nothing else.
+
+    What the correction is - its kind, its designation, the situation it was made in - stays as it was filed. The
+    shape it had before is kept beside the new one, so what was changed can be seen."""
+    _drawing(db, user, drawing_id)
+    c = db.get(Correction, correction_id)
+    if c is None or c.drawing_id != drawing_id:
+        raise HTTPException(404, "Rättelsen finns inte")
+    if c.undone:
+        raise HTTPException(409, "En ångrad rättelse går inte att ändra")
+    if c.kind not in ("extend", "draw") or len(body.points) < 2 or any(len(q) < 2 for q in body.points):
+        raise HTTPException(400, "Bara ett ritat streck med minst två punkter kan böjas")
+    payload = dict(c.payload or {})
+    earlier = list(payload.get("earlier_shapes") or [])
+    if payload.get("points"):
+        earlier.append({"points": payload.get("points"), "meters": payload.get("meters")})
+    payload.update({"points": [[float(q[0]), float(q[1])] for q in body.points], "earlier_shapes": earlier[-10:]})
+    if body.meters is not None:
+        payload["meters"] = round(float(body.meters), 3)
+    else:
+        payload.pop("meters", None)       # measured from the points and the sheet's scale when applied
+    c.payload = payload
+    db.commit()
+    return _correction_out(c)
+
+
 @app.delete("/api/drawings/{drawing_id}/corrections/{correction_id}")
 def undo_correction(drawing_id: str, correction_id: str, user: User = Depends(current_user),
                     db: Session = Depends(get_db)):

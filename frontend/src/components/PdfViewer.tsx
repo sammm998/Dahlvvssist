@@ -36,6 +36,7 @@ export interface Drawn {
 // paletten bor i src/palette.ts så att bladet, tabellen och 3D-vyn ger samma rör samma färg; den lånas vidare
 // härifrån för dem som redan hämtar den från vyn
 import { identityColor, pipeColor, pipeForLabel } from "../palette";
+import { insertPoint, midpoints, movePoint, nearestGrip, nearestMid, removePoint } from "../edit/bend";
 export { identityColor };
 
 const len = (a: number[], b: number[]) => Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -123,6 +124,9 @@ export interface ViewerProps {
   ortho?: number;
   /** Vad markören fick tag i just nu, så att rummet kan säga det i statusraden. */
   onSnapped?: (s: Snap | null) => void;
+  /* Ett streck som går att böja: varje punkt är ett grepp som kan dras, varje segments mitt ett "+" som lägger in
+   * en ny brytpunkt där den dras, och ett dubbelklick på ett grepp tar bort punkten. Metrarna följer med. */
+  editLine?: { points: number[][]; onChange: (points: number[][], meters: number) => void } | null;
 }
 
 /* Ett granskningsmoln ritas som ett moln.
@@ -539,6 +543,13 @@ const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewer(props
 
   const panDown = (e: React.PointerEvent) => {
     if (e.button !== 1 && (e.button !== 0 || (kind && !space.current))) return;
+    // ett tryck på ett grepp eller ett "+" böjer strecket och får inte samtidigt dra bladet
+    if (e.button === 0 && props.editLine && pageEl.current && !space.current) {
+      const r = pageEl.current.getBoundingClientRect();
+      const pt = [(e.clientX - r.left) / scale, (e.clientY - r.top) / scale];
+      const tol = 8 / scale;
+      if (nearestGrip(props.editLine.points, pt, tol) >= 0 || nearestMid(props.editLine.points, pt, tol) >= 0) return;
+    }
     const el = container.current;
     if (!el) return;
     stopFling();
@@ -737,7 +748,47 @@ const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewer(props
     return p;
   };
 
+  /* Böjningen tar över ett tryck som träffar ett grepp eller ett "+", före allt annat: den som drar i en punkt
+   * vill flytta den, inte börja en ny linje. Klicket som följer på dragningen sväljs av samma skäl. */
+  const [bending, setBending] = useState<number | null>(null);
+  const swallowClick = useRef(false);
+  const bendDown = (e: React.MouseEvent): boolean => {
+    const ed = props.editLine;
+    if (!ed || !vp || ed.points.length < 2 || pending.length) return false;
+    const pt = raw(e);
+    const g = nearestGrip(ed.points, pt, sw(8));
+    if (g >= 0) { e.preventDefault(); e.stopPropagation(); setBending(g); swallowClick.current = true; return true; }
+    const m = nearestMid(ed.points, pt, sw(7));
+    if (m >= 0) {
+      e.preventDefault(); e.stopPropagation();
+      const { points, index } = insertPoint(ed.points, m, pt);
+      ed.onChange(points, metres(points));
+      setBending(index); swallowClick.current = true;
+      return true;
+    }
+    return false;
+  };
+  const bendMove = (e: React.MouseEvent): boolean => {
+    const ed = props.editLine;
+    if (bending === null || !ed) return false;
+    const prev = ed.points[bending - 1] ?? ed.points[bending + 1] ?? null;
+    const pts = movePoint(ed.points, bending, at(e, prev));
+    ed.onChange(pts, metres(pts));
+    return true;
+  };
+  const bendDbl = (e: React.MouseEvent): boolean => {
+    const ed = props.editLine;
+    if (!ed || !vp) return false;
+    const g = nearestGrip(ed.points, raw(e), sw(8));
+    if (g < 0) return false;
+    e.preventDefault(); e.stopPropagation();
+    const pts = removePoint(ed.points, g);
+    ed.onChange(pts, metres(pts));
+    return true;
+  };
+
   const down = (e: React.MouseEvent) => {
+    if (bendDown(e)) return;
     if (!kind || !vp) return;
     const pt = at(e);
     if (kind === "extend") {
@@ -750,6 +801,7 @@ const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewer(props
   };
 
   const move = (e: React.MouseEvent) => {
+    if (bendMove(e)) return;
     if (!kind || !vp) return;
     const pt = at(e, pending.length ? pending[pending.length - 1] : null);
     setCursor(pt);
@@ -760,6 +812,7 @@ const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewer(props
   };
 
   const up = () => {
+    if (bending !== null) { setBending(null); return; }
     if (kind === "extend" && pending.length === 1 && cursor && len(pending[0], cursor) > sw(6)) {
       const pts = [pending[0], cursor];
       props.onDrawn?.({ points: pts, meters: metres(pts) });
@@ -850,6 +903,7 @@ const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewer(props
 
   // draw is click-to-place: a run the engine never saw has no end to grab
   const click = (e: React.MouseEvent) => {
+    if (swallowClick.current) { swallowClick.current = false; return; }
     if (!vp) return;
     if (!kind) {
       // reading the point while it is still an event, as everywhere else here
@@ -884,6 +938,7 @@ const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewer(props
   /* Dubbelklick zoomar in där man pekade, med alt för att zooma ut igen - det är så en karta läses, och det
    * sparar resan till knappen. Mitt i en ritning betyder dubbelklicket fortfarande "här slutar linjen". */
   const dblclick = (e: React.MouseEvent) => {
+    if (bendDbl(e)) return;
     if (kind === "draw") { finish(); return; }
     if (kind) return;
     glide(scaleRef.current * (e.altKey ? 1 / 1.9 : 1.9), e.clientX, e.clientY);
@@ -1182,6 +1237,25 @@ const PdfViewer = forwardRef<ViewerHandle, ViewerProps>(function PdfViewer(props
             {stroke && stroke.length > 1 && (
               <polyline points={stroke.map((q) => q.join(",")).join(" ")} fill="none" stroke="#b42318"
                 strokeWidth={sw(14)} strokeOpacity={0.16} strokeLinecap="round" strokeLinejoin="round" />
+            )}
+
+            {/* Strecket som går att böja: linjen, ett grepp på varje punkt och ett "+" mitt på varje segment. */}
+            {props.editLine && props.editLine.points.length >= 2 && (
+              <g>
+                <polyline points={props.editLine.points.map((q) => q.join(",")).join(" ")} fill="none" stroke="#0b5fff"
+                  strokeWidth={sw(3)} strokeOpacity={0.9} strokeLinecap="round" strokeLinejoin="round" />
+                {midpoints(props.editLine.points).map((q, i) => (
+                  <g key={`bm${i}`}>
+                    <circle cx={q[0]} cy={q[1]} r={sw(5)} fill="#ffffff" fillOpacity={0.9} stroke="#0b5fff" strokeWidth={sw(1.2)} />
+                    <path d={`M ${q[0] - sw(3)} ${q[1]} L ${q[0] + sw(3)} ${q[1]} M ${q[0]} ${q[1] - sw(3)} L ${q[0]} ${q[1] + sw(3)}`}
+                      stroke="#0b5fff" strokeWidth={sw(1.2)} />
+                  </g>
+                ))}
+                {props.editLine.points.map((q, i) => (
+                  <rect key={`bg${i}`} x={q[0] - sw(4.5)} y={q[1] - sw(4.5)} width={sw(9)} height={sw(9)}
+                    fill={bending === i ? "#0b5fff" : "#ffffff"} stroke="#0b5fff" strokeWidth={sw(1.8)} />
+                ))}
+              </g>
             )}
 
             {/* the ends of the selected run: grab one and pull */}

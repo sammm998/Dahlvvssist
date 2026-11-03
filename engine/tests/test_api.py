@@ -1937,3 +1937,60 @@ def test_abt_symbols_are_named_by_a_legend_or_the_person_and_counted_as_markers_
     back = client.put(f"/api/projects/{p['id']}/symbols/names", json={"id": sid, "name": ""}, headers=H).json()
     assert next(s for s in back["symbols"] if s["id"] == sid)["name"] == "Testklosett"
     assert client.put(f"/api/projects/{p['id']}/symbols/names", json={"id": "KV1", "name": "x"}, headers=H).status_code == 422
+
+
+# A drawn correction can be bent afterwards, and the takeoff follows the new shape. The person correcting a pipe
+# draws a line along it; if the line cut a corner, it used to stand as drawn and the only way out was to undo it and
+# draw again. Now its points can be moved and bend points added, saved over the old shape (kept beside it), while
+# what the correction is stays as filed.
+def _read_for_bending(client, H, synthetic_pdf, email):
+    p = client.post("/api/projects", json={"name": "Böj", "description": ""}, headers=H).json()
+    with open(synthetic_pdf, "rb") as fh:
+        d = client.post(f"/api/projects/{p['id']}/drawings", files={"file": ("b.pdf", fh, "application/pdf")},
+                        headers=H).json()
+    j = client.post(f"/api/drawings/{d['id']}/analyze", headers=H).json()
+    for _ in range(120):
+        j = client.get(f"/api/jobs/{j['id']}", headers=H).json()
+        if j["status"] in ("COMPLETED", "FAILED"):
+            break
+        time.sleep(0.5)
+    assert j["status"] == "COMPLETED", j
+    return d, j
+
+
+def test_a_drawn_correction_is_bent_and_the_row_follows(client, synthetic_pdf):
+    r = client.post("/api/auth/register", json={"email": "bojer@example.com", "password": "hemligt1"}).json()
+    H = {"Authorization": f"Bearer {r['access_token']}"}
+    d, j = _read_for_bending(client, H, synthetic_pdf, "bojer@example.com")
+    c = client.post(f"/api/drawings/{d['id']}/corrections", headers=H, json={
+        "kind": "draw", "designation": "KV9-X1-15", "job_id": j["id"],
+        "payload": {"points": [[100, 100], [200, 100]], "meters": 2.0}}).json()
+    row = lambda: next(q for q in client.get(f"/api/jobs/{j['id']}/result", headers=H).json()["quantities"]
+                       if q["designation"] == "KV9-X1-15")
+    assert abs(row()["confirmed_total_m"] - 2.0) < 1e-6
+
+    bent = client.put(f"/api/drawings/{d['id']}/corrections/{c['id']}/shape", headers=H,
+                      json={"points": [[100, 100], [150, 150], [200, 100]], "meters": 2.83})
+    assert bent.status_code == 200, bent.text
+    stored = bent.json()
+    assert stored["payload"]["points"] == [[100, 100], [150, 150], [200, 100]]
+    assert stored["payload"]["earlier_shapes"][0]["points"] == [[100, 100], [200, 100]]
+    assert stored["kind"] == "draw" and stored["designation"] == "KV9-X1-15"
+    assert abs(row()["confirmed_total_m"] - 2.83) < 1e-6
+
+    # a line has at least two points, and only a drawn line can be bent
+    assert client.put(f"/api/drawings/{d['id']}/corrections/{c['id']}/shape", headers=H,
+                      json={"points": [[1, 1]]}).status_code == 400
+    q = client.post(f"/api/drawings/{d['id']}/corrections", headers=H, json={
+        "kind": "quantity", "designation": "KV9-X1-15", "payload": {"meters": 1.0}}).json()
+    assert client.put(f"/api/drawings/{d['id']}/corrections/{q['id']}/shape", headers=H,
+                      json={"points": [[1, 1], [2, 2]]}).status_code == 400
+
+    # another account cannot bend it, and an undone correction stays undone
+    other = client.post("/api/auth/register", json={"email": "annan-boj@example.com", "password": "hemligt1"}).json()
+    OH = {"Authorization": f"Bearer {other['access_token']}"}
+    assert client.put(f"/api/drawings/{d['id']}/corrections/{c['id']}/shape", headers=OH,
+                      json={"points": [[1, 1], [2, 2]]}).status_code == 404
+    client.delete(f"/api/drawings/{d['id']}/corrections/{c['id']}", headers=H)
+    assert client.put(f"/api/drawings/{d['id']}/corrections/{c['id']}/shape", headers=H,
+                      json={"points": [[1, 1], [2, 2]]}).status_code == 409

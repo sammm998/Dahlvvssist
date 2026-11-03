@@ -34,9 +34,13 @@ function measureText(m: any): string {
   return "";
 }
 
-export default function Markups({ drawingId, page, tool, draft, meterPerPt, onToolChange, onDraftClear, onChanged }: {
+export default function Markups({ drawingId, page, tool, draft, meterPerPt, onToolChange, onDraftClear, onChanged,
+  shape = null, onShape }: {
   drawingId: string; page: number; tool: MarkTool; draft: MarkDraft; meterPerPt: number | null;
   onToolChange: (t: MarkTool) => void; onDraftClear: () => void; onChanged: (rows: any[]) => void;
+  /** Markeringen vars streck böjs just nu, och hur panelen sätter eller släpper den. */
+  shape?: { id: string; points: number[][]; meters: number } | null;
+  onShape?: (s: { id: string; points: number[][]; meters: number } | null) => void;
 }) {
   const [data, setData] = useState<any>(null);
   const [layer, setLayer] = useState("Mängdning");
@@ -125,7 +129,26 @@ export default function Markups({ drawingId, page, tool, draft, meterPerPt, onTo
                     <td className="muted">{r.layer}</td>
                     <td className="lf-mono">{r.designation ?? "–"}</td>
                     <td className="num">{measureText(r.measure)}</td>
-                    <td><button className="ghost small" onClick={() => remove(r.id)}>{tr("Ta bort")}</button></td>
+                    <td>
+                      {/* en längd eller yta kan böjas i efterhand; servern mäter om när formen sparas */}
+                      {onShape && (r.tool === "langd" || r.tool === "area") && (r.points?.length ?? 0) >= 2 && (
+                        shape && shape.id === r.id
+                          ? <>
+                              <button className="small" disabled={busy} onClick={async () => {
+                                setBusy(true); setErr("");
+                                try {
+                                  await api.updateMarkup(drawingId, r.id, { page, tool: r.tool, layer: r.layer,
+                                    designation: r.designation ?? null, points: shape.points, text: r.text ?? "" });
+                                  onShape(null); await load();
+                                } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+                              }}>{tr("Spara form")}</button>
+                              <button className="ghost small" onClick={() => onShape(null)}>{tr("Avbryt")}</button>
+                            </>
+                          : <button className="ghost small" title={tr("Böj strecket på ritningen")}
+                              onClick={() => onShape({ id: r.id, points: r.points, meters: Number(r.measure?.m ?? 0) })}>{tr("Ändra form")}</button>
+                      )}
+                      <button className="ghost small" onClick={() => remove(r.id)}>{tr("Ta bort")}</button>
+                    </td>
                   </tr>
                 ))}
                 {!data.rows.length && <tr><td colSpan={5} className="empty">{tr("Inga markeringar på den här sidan.")}</td></tr>}

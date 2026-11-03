@@ -36,11 +36,11 @@ export function LangSwitch({ className = "" }: { className?: string }) {
   );
 }
 
-function Mark({ size = 17, color = "currentColor" }: { size?: number; color?: string }) {
+function Mark({ size = 17 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 22 22" aria-hidden="true">
-      <path d="M3 15 H8 V7 H14 V15 H19" stroke={color} strokeWidth="2.3" fill="none"
-        strokeLinecap="round" strokeLinejoin="round" />
+    <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true">
+      <rect width="20" height="20" rx="4.5" fill="#00649f" />
+      <path d="M6.2 4.8h3.3a5.2 5.2 0 0 1 0 10.4H6.2z" stroke="#fff" strokeWidth="2" fill="none" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -73,10 +73,10 @@ export default function SiteHeader({ anchors, cta }:
         </button>
 
         <Link className="lp-logo lp-pill" to="/" aria-label={tr("Till startsidan")}>
-          <Mark color="#6ee7a5" />
+          <Mark />
           {/* Ordmärket i ett eget element, så den smalaste skärmen kan behålla märket och släppa orden utan att
               släppa ikonen med dem. Namnet finns kvar för uppläsning via aria-label på länken. */}
-          <span className="lp-logo-t">Radiator VVS</span>
+          <span className="lp-logo-t">Dahl</span>
         </Link>
 
         <span className="lp-sp" />

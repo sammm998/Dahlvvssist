@@ -1,4 +1,4 @@
-/* Radiator VVS — ett designsystem, tre intensiteter.
+/* Dahl — ett designsystem, tre intensiteter. Profilen följer www.dahl.se: djup marinblå grund, Dahl-blå accent.
  *
  * Samma tokens bär hela produkten. Det som skiljer är hur hårt de används:
  *
@@ -6,7 +6,7 @@
  *   APPEN           effektiv. Samma färger och samma typsnitt, men täta rader och ingen scenografi.
  *   ACADEMY         mittemellan. Premium ram, funktionellt innehåll - en lektion ska läsas, inte upplevas.
  *
- * Färgerna är nästan svarta med off-white text. Accenten är grön och betyder alltid samma sak i hela
+ * Färgerna är Dahls marinblå med off-white text. Accenten är Dahl-blå och betyder alltid samma sak i hela
  * produkten: verifierat, mätt, aktivt. Den fyller aldrig en yta - den markerar en.
  */
 
@@ -43,17 +43,17 @@
   /* ---- grund ----
      Mörkret är blåsvart och inte kolsvart: en ton med djup i, som en ritning i skymning. Kolsvart med vit
      text blev hårt för ögat över en hel sida, och det ljusa temat nedan står bättre mot en mjukare mörk. */
-  --fc-black: #0d1117;
-  --fc-bg: #10151c;
-  --fc-bg-2: #161c25;
-  --fc-bg-3: #1d2430;
-  --fc-paper: #f2f1ed;
+  --fc-black: #001726;
+  --fc-bg: #001c2f;
+  --fc-bg-2: #00243b;
+  --fc-bg-3: #002b46;                      /* Dahls marinblå */
+  --fc-paper: #f2f5f8;
 
   /* ---- text ---- */
-  --fc-ink: #f2f1ed;
-  --fc-ink-60: rgba(242, 241, 237, 0.60);
-  --fc-ink-40: rgba(242, 241, 237, 0.40);
-  --fc-ink-24: rgba(242, 241, 237, 0.24);
+  --fc-ink: #f2f5f8;
+  --fc-ink-60: rgba(242, 245, 248, 0.64);
+  --fc-ink-40: rgba(242, 245, 248, 0.44);
+  --fc-ink-24: rgba(242, 245, 248, 0.26);
 
   /* ---- linjer ---- */
   --fc-line: rgba(255, 255, 255, 0.11);
@@ -62,9 +62,9 @@
   --fc-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 60px -30px rgba(0, 0, 0, 0.7);
 
   /* ---- accent: verifierat, mätt, aktivt. Aldrig dekoration. ---- */
-  --fc-accent: #6ee7a5;
-  --fc-accent-dim: rgba(110, 231, 165, 0.16);
-  --fc-accent-ink: #06130c;
+  --fc-accent: #5cb8ec;
+  --fc-accent-dim: rgba(92, 184, 236, 0.16);
+  --fc-accent-ink: #001726;
 
   /* ---- typsnitt ---- */
   --fc-sans: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -89,22 +89,22 @@
  * ljust: den ljusgröna försvann mot papperet.
  */
 .fc-light {
-  --fc-black: #f6f4ef;
-  --fc-bg: #f6f4ef;
+  --fc-black: #f3f6f9;
+  --fc-bg: #f3f6f9;
   --fc-bg-2: #ffffff;
-  --fc-bg-3: #eeebe4;
+  --fc-bg-3: #e6edf3;
   --fc-paper: #ffffff;
-  --fc-ink: #12161c;
-  --fc-ink-60: rgba(18, 22, 28, 0.66);
-  --fc-ink-40: rgba(18, 22, 28, 0.48);
-  --fc-ink-24: rgba(18, 22, 28, 0.26);
-  --fc-line: rgba(18, 22, 28, 0.12);
-  --fc-line-2: rgba(18, 22, 28, 0.07);
-  --fc-line-3: rgba(18, 22, 28, 0.22);
-  --fc-accent: #0f8a52;
-  --fc-accent-dim: rgba(15, 138, 82, 0.1);
+  --fc-ink: #002b46;
+  --fc-ink-60: rgba(0, 43, 70, 0.70);
+  --fc-ink-40: rgba(0, 43, 70, 0.52);
+  --fc-ink-24: rgba(0, 43, 70, 0.28);
+  --fc-line: rgba(0, 43, 70, 0.12);
+  --fc-line-2: rgba(0, 43, 70, 0.07);
+  --fc-line-3: rgba(0, 43, 70, 0.22);
+  --fc-accent: #00649f;
+  --fc-accent-dim: rgba(0, 100, 159, 0.1);
   --fc-accent-ink: #ffffff;
-  --fc-shadow: 0 1px 2px rgba(18, 22, 28, 0.04), 0 18px 48px -24px rgba(18, 22, 28, 0.22);
+  --fc-shadow: 0 1px 2px rgba(0, 43, 70, 0.05), 0 18px 48px -24px rgba(0, 43, 70, 0.24);
   background: var(--fc-black);
   color: var(--fc-ink);
 }

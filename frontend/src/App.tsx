@@ -43,8 +43,9 @@ function Guard({ children }: { children: JSX.Element }) {
 
 function Mark() {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M2 13h5V6h6v7h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" />
+    <svg width={22} height={22} viewBox="0 0 20 20" aria-hidden="true">
+      <rect width="20" height="20" rx="4.5" fill="#00649f" />
+      <path d="M6.2 4.8h3.3a5.2 5.2 0 0 1 0 10.4H6.2z" stroke="#fff" strokeWidth="2" fill="none" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -170,7 +171,7 @@ const ROUTES = (
     <Route path="/utbildning/:modul" element={<EducationCoursePage />} />
     <Route path="/utbildning/:modul/:lektion" element={<EducationLessonPage />} />
     <Route path="/kontakt" element={<ContactPage />} />
-    {/* Radiator VVS Academy. Verifieringen är öppen med flit: ett certifikat som bara innehavaren kan visa
+    {/* Dahl Academy. Verifieringen är öppen med flit: ett certifikat som bara innehavaren kan visa
         bevisar ingenting. Allt annat kräver konto. */}
     <Route path="/verifiera" element={<VerifyPage />} />
     <Route path="/academy" element={<Guard><AcademyHome /></Guard>} />
@@ -275,7 +276,7 @@ export default function App() {
           title={rail ? tr("Visa sidopanelen") : tr("Fäll ihop sidopanelen")}
           aria-label={rail ? tr("Visa sidopanelen") : tr("Fäll ihop sidopanelen")}><IconRail /></button>
         <div>
-          <Link to="/projekt" className="brand"><Mark /> <span className="wide">Radiator VVS</span></Link>
+          <Link to="/projekt" className="brand"><Mark /> <span className="wide">Dahl</span></Link>
           <div className="org wide" style={{ marginTop: 10 }}>{tr("Mängdning ur ren vektor")}</div>
         </div>
         <nav>

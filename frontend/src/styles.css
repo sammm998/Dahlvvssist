@@ -4,20 +4,21 @@
 :root {
   --bg: #ffffff;
   --bg-2: #fafafa;
-  --ink: #0d0d0d;
-  --text: #0d0d0d;
-  --muted: #6b6b6b;
-  --faint: #9b9b9b;
-  --line: #ececec;
-  --line-2: #d9d9d9;
-  --chip: #f3f3f3;
+  /* Dahl: marinblått bär det aktiva (knappar, valda flikar, staplar), Dahl-blått är länk och accent. */
+  --ink: #002b46;
+  --text: #0e1f2b;
+  --muted: #5d6f7d;
+  --faint: #93a2ae;
+  --line: #e3e9ee;
+  --line-2: #d0dae2;
+  --chip: #eef3f7;
   --ok: #16794a;
   --ok-bg: #eaf6ef;
   --warn: #8a5a00;
   --warn-bg: #fdf3e0;
   --bad: #a32020;
   --bad-bg: #fbeced;
-  --accent: #0d0d0d;
+  --accent: #00649f;
   /* Depth, as one idea applied everywhere: light from above, surfaces that lift.
      Three elevations, each a close contact shadow plus a wide ambient one - a single blur reads as a sticker,
      two read as an object above a surface. The hairline on top is the light catching the near edge. */
@@ -43,8 +44,8 @@ body {
   /* The paper the panels lie on. Pure white gives them nothing to lift off; this is barely a tint, plus one
      soft light from the top left, so a shadow has something to fall on. */
   background:
-    radial-gradient(80% 52% at 12% -6%, rgba(13, 13, 13, 0.045) 0%, rgba(13, 13, 13, 0) 60%),
-    radial-gradient(46% 34% at 92% 4%, rgba(13, 13, 13, 0.028) 0%, rgba(13, 13, 13, 0) 64%),
+    radial-gradient(80% 52% at 12% -6%, rgba(0, 100, 159, 0.06) 0%, rgba(0, 100, 159, 0) 60%),
+    radial-gradient(46% 34% at 92% 4%, rgba(0, 100, 159, 0.035) 0%, rgba(0, 100, 159, 0) 64%),
     var(--bg-2);
   background-attachment: fixed;
   color: var(--text);
@@ -960,8 +961,8 @@ button.drill:hover { background: var(--chip); opacity: 1; }
 .auth-form .swap button:hover { opacity: 0.6; }
 
 .auth .aside {
-  background: #0b0d10;
-  color: #e9ecf1;
+  background: #002b46;
+  color: #eef3f7;
   padding: 56px 52px;
   display: flex;
   flex-direction: column;
@@ -982,7 +983,7 @@ button.drill:hover { background: var(--chip); opacity: 1; }
 }
 .auth .aside .facts {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px;
-  border-top: 1px solid #1e232b; padding-top: 26px;
+  border-top: 1px solid #1b4664; padding-top: 26px;
 }
 .auth .aside .facts > div { font-size: 12px; line-height: 1.45; color: #8b929e; }
 .auth .aside .facts b {
@@ -2656,7 +2657,7 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
 .gate { position: fixed; inset: 0; z-index: 65; pointer-events: none; overflow: hidden; }
 .gate-panel {
   position: absolute; top: 0; bottom: 0; width: 50.6%;
-  background: linear-gradient(180deg, #101720 0%, #0c1118 100%);
+  background: linear-gradient(180deg, #002b46 0%, #001c2f 100%);
   box-shadow: inset 0 0 120px rgba(18, 158, 176, 0.09);
 }
 .gate-panel.left { left: 0; border-right: 1px solid rgba(120, 200, 220, 0.25); }
@@ -2973,7 +2974,7 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
 }
 .ac-course::before {
   content: ""; position: absolute; inset: 0 0 auto; height: 2px;
-  background: linear-gradient(90deg, #6ee7a5, rgba(110, 231, 165, 0));
+  background: linear-gradient(90deg, #5cb8ec, rgba(92, 184, 236, 0));
   transform: scaleX(0); transform-origin: 0 50%;
   transition: transform 0.4s var(--ease);
 }
@@ -2989,7 +2990,7 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
   border-radius: 9px; border: 1px solid var(--line-2);
   font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; color: var(--ink);
 }
-.ac-course.full .ac-no { background: rgba(110, 231, 165, 0.16); border-color: rgba(110, 231, 165, 0.5); }
+.ac-course.full .ac-no { background: rgba(92, 184, 236, 0.16); border-color: rgba(92, 184, 236, 0.5); }
 .ac-course h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: -0.015em; }
 .ac-course > p { margin: 0 0 14px; color: var(--muted, #6a6a6a); font-size: 14.5px; line-height: 1.6; }
 .ac-course-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 5px; }
@@ -2999,16 +3000,16 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
   flex: none; width: 15px; height: 15px; border-radius: 50%;
   border: 1.5px solid var(--line-2); position: relative;
 }
-.ac-course-list li.done .tick { background: #6ee7a5; border-color: #6ee7a5; }
+.ac-course-list li.done .tick { background: #5cb8ec; border-color: #5cb8ec; }
 .ac-course-list li.done .tick::after {
   content: ""; position: absolute; left: 4px; top: 1.5px; width: 4px; height: 8px;
-  border: solid #0b2f1c; border-width: 0 1.7px 1.7px 0; transform: rotate(42deg);
+  border: solid #001726; border-width: 0 1.7px 1.7px 0; transform: rotate(42deg);
 }
 .ac-course-list li.done { color: var(--ink); }
 .ac-course-foot { display: flex; align-items: center; gap: 12px; margin-top: auto; }
 .ac-course-foot .lp-mono { font-size: 11px; color: var(--faint); white-space: nowrap; }
 .ac-bar { flex: 1; height: 4px; border-radius: 99px; background: rgba(125, 125, 125, 0.2); overflow: hidden; }
-.ac-bar i { display: block; height: 100%; border-radius: 99px; background: #6ee7a5; transition: width 0.7s var(--ease); }
+.ac-bar i { display: block; height: 100%; border-radius: 99px; background: #5cb8ec; transition: width 0.7s var(--ease); }
 .ac-course-go {
   margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line);
   font-size: 13.5px; color: var(--ink); opacity: 0.55;
@@ -3042,10 +3043,10 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
 }
 .ac-lessons li a:hover { transform: translateX(3px); border-color: var(--line-2); box-shadow: var(--e1); }
 .ac-lessons .tick { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line-2); position: relative; }
-.ac-lessons li.done .tick { background: #6ee7a5; border-color: #6ee7a5; }
+.ac-lessons li.done .tick { background: #5cb8ec; border-color: #5cb8ec; }
 .ac-lessons li.done .tick::after {
   content: ""; position: absolute; left: 5.5px; top: 2px; width: 4px; height: 9px;
-  border: solid #0b2f1c; border-width: 0 1.8px 1.8px 0; transform: rotate(42deg);
+  border: solid #001726; border-width: 0 1.8px 1.8px 0; transform: rotate(42deg);
 }
 .ac-lessons .no { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12.5px; color: var(--faint); }
 .ac-lessons .nm { font-size: 15.5px; font-weight: 500; min-width: 0; }
@@ -3080,7 +3081,7 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
 .ac-read > p:first-child { font-size: 18.5px; color: var(--ink); }
 .ac-ul { margin: 0 0 20px; padding: 0; list-style: none; display: grid; gap: 9px; }
 .ac-ul li { position: relative; padding-left: 20px; color: var(--muted, #4a4a4a); }
-.ac-ul li::before { content: ""; position: absolute; left: 2px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: #6ee7a5; }
+.ac-ul li::before { content: ""; position: absolute; left: 2px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: #5cb8ec; }
 .ac-terms { margin: 0 0 22px; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; }
 .ac-terms > div { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 16px; padding: 14px 18px; background: var(--glass); }
 .ac-terms dt { font-weight: 600; font-size: 15px; }
@@ -3088,8 +3089,8 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
 @media (max-width: 640px) { .ac-terms > div { grid-template-columns: 1fr; gap: 4px; } }
 .ac-note {
   margin: 0 0 22px; padding: 16px 18px 16px 20px;
-  border-left: 2.5px solid #6ee7a5; border-radius: 0 11px 11px 0;
-  background: rgba(110, 231, 165, 0.08);
+  border-left: 2.5px solid #5cb8ec; border-radius: 0 11px 11px 0;
+  background: rgba(92, 184, 236, 0.08);
   font-size: 15.5px; line-height: 1.68;
 }
 .ac-fig { margin: 0 0 24px; }
@@ -3099,7 +3100,7 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
 .ac-sidefig { padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--glass); box-shadow: var(--e1); }
 .ac-shorts { list-style: none; margin: 16px 0 0; padding: 16px 0 0; border-top: 1px solid var(--line); display: grid; gap: 10px; }
 .ac-shorts li { position: relative; padding-left: 18px; font-size: 14px; line-height: 1.6; color: var(--muted, #6a6a6a); }
-.ac-shorts li::before { content: ""; position: absolute; left: 0; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: #6ee7a5; }
+.ac-shorts li::before { content: ""; position: absolute; left: 0; top: 9px; width: 5px; height: 5px; border-radius: 50%; background: #5cb8ec; }
 @media (max-width: 1000px) { .ac-side { position: static; } }
 
 .ac-quiz { margin: clamp(26px, 5vh, 42px) 0 0; padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--glass); }
@@ -3117,10 +3118,10 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
   flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px;
   border: 1px solid var(--line-2); font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11.5px; color: var(--faint);
 }
-.ac-opt.right { border-color: #6ee7a5; background: rgba(110, 231, 165, 0.12); }
-.ac-opt.right .mark { background: #6ee7a5; border-color: #6ee7a5; color: #0b2f1c; }
+.ac-opt.right { border-color: #5cb8ec; background: rgba(92, 184, 236, 0.12); }
+.ac-opt.right .mark { background: #5cb8ec; border-color: #5cb8ec; color: #001726; }
 .ac-opt.wrong { border-color: rgba(214, 90, 90, 0.6); background: rgba(214, 90, 90, 0.08); }
-.ac-opt.is-answer:not(.right) { border-color: rgba(110, 231, 165, 0.55); }
+.ac-opt.is-answer:not(.right) { border-color: rgba(92, 184, 236, 0.55); }
 .ac-why { margin: 16px 0 0; font-size: 15px; line-height: 1.65; color: var(--muted, #6a6a6a); }
 .ac-why.ok { color: var(--ink); }
 
@@ -3133,7 +3134,7 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
 .ac-badge {
   display: inline-flex; align-items: center; gap: 9px;
   padding: 9px 16px; border-radius: 999px;
-  border: 1px solid rgba(110, 231, 165, 0.5); background: rgba(110, 231, 165, 0.12);
+  border: 1px solid rgba(92, 184, 236, 0.5); background: rgba(92, 184, 236, 0.12);
   font-size: 14.5px;
 }
 .ac-badge b { color: #1d7a4c; }
@@ -3152,7 +3153,7 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
   border-color: var(--lp-line); box-shadow: none;
 }
-.lp .ac-resume { background: linear-gradient(135deg, rgba(110, 231, 165, 0.07), rgba(255, 255, 255, 0.015) 55%); }
+.lp .ac-resume { background: linear-gradient(135deg, rgba(92, 184, 236, 0.07), rgba(255, 255, 255, 0.015) 55%); }
 .lp .ac-course:hover, .lp .ac-lessons li a:hover, .lp .ac-step:hover { border-color: var(--lp-line-2); box-shadow: none; }
 .lp .ac-terms { background: var(--lp-line); border-color: var(--lp-line); }
 .lp .ac-no, .lp .ac-opt .mark { border-color: var(--lp-line-2); color: var(--lp-ink); }
@@ -3165,8 +3166,8 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
 .lp .ac-bar { background: rgba(255, 255, 255, 0.12); }
 .lp .ac-tabs button { border-color: var(--lp-line); color: var(--lp-dim); }
 .lp .ac-tabs button.on { background: var(--lp-ink); border-color: var(--lp-ink); color: #0a0b0d; }
-.lp .ac-badge b { color: #6ee7a5; }
-.lp .ac-note { background: rgba(110, 231, 165, 0.09); }
+.lp .ac-badge b { color: #5cb8ec; }
+.lp .ac-note { background: rgba(92, 184, 236, 0.09); }
 .lp .ac-lessons .tick, .lp .ac-course-list .tick { border-color: var(--lp-line-2); }
 
 /* akademins huvudrad: logotypen är en väg tillbaka, inte bara en etikett */
@@ -3218,7 +3219,7 @@ button.d3-open:hover { box-shadow: 0 6px 20px rgba(18, 158, 176, 0.45), inset 0 
   border: 1px solid rgba(255, 255, 255, 0.18); background: transparent; color: inherit;
   border-radius: 999px; padding: 5px 12px; font-size: 12px; cursor: pointer;
 }
-.bcad-doing-b.on { background: #6ee7a5; border-color: #6ee7a5; color: #06130c; font-weight: 600; }
+.bcad-doing-b.on { background: #5cb8ec; border-color: #5cb8ec; color: #001726; font-weight: 600; }
 .bcad-doing-b kbd {
   font-family: ui-monospace, monospace; font-size: 10px; opacity: 0.7;
   border: 1px solid currentColor; border-radius: 4px; padding: 0 4px;

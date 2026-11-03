@@ -24,8 +24,8 @@ function Drawing() {
     <svg viewBox="0 0 1040 380" role="img" aria-label={tr("Planritning där rören markerats och mätts")}>
       <defs>
         <linearGradient id="lpFade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#6ee7a5" stopOpacity="0.95" />
-          <stop offset="1" stopColor="#6ee7a5" stopOpacity="0.55" />
+          <stop offset="0" stopColor="#5cb8ec" stopOpacity="0.95" />
+          <stop offset="1" stopColor="#5cb8ec" stopOpacity="0.55" />
         </linearGradient>
         <clipPath id="lpWipe" clipPathUnits="userSpaceOnUse">
           <rect className="lp-wipe" x="0" y="0" width="1040" height="380" />
@@ -51,7 +51,7 @@ function Drawing() {
       </g>
 
       {/* connection circles where the runs stop */}
-      <g className="lp-pop" fill="#07080a" stroke="#6ee7a5" strokeWidth="2.2">
+      <g className="lp-pop" fill="#07080a" stroke="#5cb8ec" strokeWidth="2.2">
         <circle cx="120" cy="260" r="5.5" />
         <circle cx="900" cy="96" r="5.5" />
       </g>
@@ -61,8 +61,8 @@ function Drawing() {
 
       {/* labels on their leaders, the way the sheet writes them */}
       <g className="lp-pop" style={{ animationDelay: "1.65s" }}>
-        <path d="M470 96 L560 100" stroke="#6ee7a5" strokeOpacity="0.5" strokeWidth="1.2" fill="none" />
-        <path d="M372 74 H470" stroke="#6ee7a5" strokeOpacity="0.5" strokeWidth="1.2" fill="none" />
+        <path d="M470 96 L560 100" stroke="#5cb8ec" strokeOpacity="0.5" strokeWidth="1.2" fill="none" />
+        <path d="M372 74 H470" stroke="#5cb8ec" strokeOpacity="0.5" strokeWidth="1.2" fill="none" />
         <text x="372" y="66" fill="#f4f5f7" fontSize="16" fontFamily="ui-monospace, SFMono-Regular, monospace">
           S1-P5-110
         </text>
@@ -101,7 +101,7 @@ function LineSample({ color, dash }: { color: string; dash: string }) {
 }
 
 const LINES: { code: string; name: string; line: string; color: string; dash: string }[] = [
-  { code: "KV / VV / VVC", name: "Tappkall-, tappvarm- och cirkulationsvatten", line: "Heldragen, över golv", color: "#6ee7a5", dash: "" },
+  { code: "KV / VV / VVC", name: "Tappkall-, tappvarm- och cirkulationsvatten", line: "Heldragen, över golv", color: "#5cb8ec", dash: "" },
   { code: "S", name: "Spillvatten — självfall, ofta gjutjärn i stam och PP liggande", line: "Streckad i eller under golv", color: "#f0abfc", dash: "14 6" },
   { code: "D / DR", name: "Dagvatten och dränering", line: "Streckad, grövre dimensioner", color: "#fcd34d", dash: "14 6" },
   { code: "VS / VP", name: "Värme sekundär och primär, fram- och returledning", line: "Punktstreckad under tak", color: "#60a5fa", dash: "16 5 3 5" },
@@ -160,7 +160,7 @@ function Stage() {
         {[["KV1-X31-16", "17,10 m", 12, 21], ["S3-R8-110", "58,40 m", 57, 11],
           ["VV1-X31-16", "33,92 m", 76, 38], ["S1-P2-75", "4,73 m", 63, 58]].map(([t, m, x, y], i) => (
           <span key={t as string} className="lp-chip" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${1.1 + i * 0.22}s` }}>
-            <i style={{ background: ["#6ee7a5", "#f0abfc", "#60a5fa", "#fbbf24"][i] }} />
+            <i style={{ background: ["#5cb8ec", "#f0abfc", "#60a5fa", "#fbbf24"][i] }} />
             {t}<b>{m}</b>
           </span>
         ))}
@@ -373,7 +373,7 @@ export default function Landing() {
             <svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true">
               <path d="M3 15 H8 V7 H14 V15 H19" stroke="#5b616c" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Radiator VVS
+            Dahl
           </span>
           <span className="sp" />
           <Link to="/hur-det-funkar">{tr("Hur det funkar")}</Link>

@@ -406,6 +406,18 @@ avvisat på skärmen, i det dokument de prissätter ur, vore fel sorts fil.
 
 ---
 
+
+**Böja ett streck.** Ett ritat rättelsestreck, en ritad förlängning eller en längd- eller ytmarkering kan böjas så att
+den följer röret, både som utkast innan det sparas och i efterhand med "Ändra form":
+- dra i ett **+** mitt på ett segment för en ny brytpunkt
+- dra i en **ruta** för att flytta en punkt
+- dubbelklicka på en ruta för att ta bort den
+
+Punkterna fäster mot ritningens egna linjer ("Fäst mot ritningen", på som standard), och metrarna räknas om medan man
+drar. En sparad rättelse får sin nya form via `PUT /api/drawings/{id}/corrections/{cid}/shape`. Typ och beteckning
+står kvar, de tidigare formerna sparas i `earlier_shapes` och en ångrad rättelse kan inte böjas. Punktfunktionerna
+finns i `frontend/src/edit/bend.ts`.
+
 ## 5. Projektanalysen: hela handlingen som en modell
 
 En enkel analys läser en ritning och svarar med meter. Projektanalysen (`handling.py`, `backend/app/projects_api.py`)

@@ -4,20 +4,24 @@ import { api } from "../api";
 import { pipeColor } from "../palette";
 
 export type Draft = { points: number[][]; meters: number; hits?: string[] } | null;
+/** En sparad rättelse vars streck böjs just nu: dess id, och punkterna som de står på bladet. */
+export type ShapeEdit = { id: string; points: number[][]; meters: number } | null;
 
 const HELP: Record<string, string> = {
-  extend: "Dra från den röda punkten i sträckans ände, dit röret fortsätter. Längden räknas medan du drar.",
-  draw: "Klicka längs röret. Backsteg tar bort senaste punkten, Esc avbryter, dubbelklick eller Enter avslutar.",
+  extend: "Dra från den röda punkten i sträckans ände, dit röret fortsätter. Längden räknas medan du drar. Böj sedan strecket: dra i ett + för en ny brytpunkt, dra i en ruta för att flytta den, dubbelklicka på en ruta för att ta bort den.",
+  draw: "Klicka längs röret. Backsteg tar bort senaste punkten, Esc avbryter, dubbelklick eller Enter avslutar. Böj sedan strecket: dra i ett + för en ny brytpunkt, dra i en ruta för att flytta den, dubbelklicka på en ruta för att ta bort den.",
   erase: "Dra suddet längs det som mätts men inte är rör. Det som försvinner blir rött medan du drar.",
   retag: "Flytta hela sträckans meter till en annan beteckning.",
   quantity: "Sätt längden för hand när ritningen säger något annat.",
 };
 
 export default function Corrections({ drawingId, jobId, page, quantities, corrections, draft, kind, pipe,
-  proposals = [], onKindChange, onDraftClear, onChanged }: {
+  proposals = [], onKindChange, onDraftClear, onChanged, shape = null, onShape }: {
     drawingId: string; jobId: string; page: number; quantities: any[];
     corrections: any[]; draft: Draft; kind: string | null; pipe: any | null; proposals?: any[];
     onKindChange: (kind: string | null) => void; onDraftClear: () => void; onChanged: () => void;
+    /** Den sparade rättelse vars streck böjs, och hur panelen sätter eller släpper den. */
+    shape?: ShapeEdit; onShape?: (s: ShapeEdit) => void;
   }) {
   const [to, setTo] = useState("");
   const [meters, setMeters] = useState("");
@@ -179,8 +183,31 @@ export default function Corrections({ drawingId, jobId, page, quantities, correc
               {c.payload?.from && <> · från {c.payload.from}</>}
               {c.note && <div className="muted">{c.note}</div>}
             </div>
-            <button className="ghost small"
-              onClick={async () => { await api.undoCorrection(drawingId, c.id); onChanged(); }}>{tr("Ångra")}</button>
+            <div className="row" style={{ gap: 4 }}>
+              {/* ett ritat streck kan böjas i efterhand så att det följer röret */}
+              {onShape && (c.kind === "extend" || c.kind === "draw") && (c.payload?.points?.length ?? 0) >= 2 && c.page === page
+                && shape?.id !== c.id && (
+                <button className="ghost small" title={tr("Böj strecket så att det följer röret")}
+                  onClick={() => onShape({ id: c.id, points: c.payload.points, meters: Number(c.payload.meters ?? 0) })}>
+                  {tr("Ändra form")}</button>
+              )}
+              <button className="ghost small"
+                onClick={async () => { await api.undoCorrection(drawingId, c.id); onChanged(); }}>{tr("Ångra")}</button>
+            </div>
+            {shape && shape.id === c.id && (
+              <div className="draftbox pos" style={{ width: "100%" }}>
+                <span className="muted">{tr("Böj strecket på ritningen: dra i + för en ny brytpunkt, i en ruta för att flytta den, dubbelklicka på en ruta för att ta bort den.")}</span>
+                <b> {num(Number(shape.meters.toFixed(3)), 2)} m</b>
+                <button className="small" disabled={busy} onClick={async () => {
+                  setBusy(true); setErr("");
+                  try {
+                    await api.reshapeCorrection(drawingId, c.id, shape.points, Number(shape.meters.toFixed(3)));
+                    onShape?.(null); onChanged();
+                  } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+                }}>{tr("Spara form")}</button>
+                <button className="ghost small" onClick={() => onShape?.(null)}>{tr("Avbryt")}</button>
+              </div>
+            )}
           </div>
         ))}
       </div>

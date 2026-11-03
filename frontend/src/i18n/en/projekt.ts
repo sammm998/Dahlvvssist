@@ -162,6 +162,7 @@ export const projekt: Record<string, string> = {
   "Inte identifierad": "Not identified",
   "Regelkälla: PipeStudio och Swedish VVS. Vald stil följer modellens bedömning. Geometrin läses av VVS5; systeminträden är ännu inte fullständigt identifierade. Resultatet behöver granskas.": "Rule source: PipeStudio and Swedish VVS. The selected style is supplied to the model. VVS5 reads geometry; system entries are not yet fully identified. Results require review.",
   "Utan AI": "No AI",
+  "förvald": "preselected",
   "Inte ansluten på servern": "Not connected on the server",
   "Läst med": "Read with",
   "Kontrollritning": "Control drawing",

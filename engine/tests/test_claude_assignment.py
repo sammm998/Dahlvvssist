@@ -56,10 +56,16 @@ def test_the_answer_schema_and_images_are_put_in_anthropics_form():
 
 
 def test_the_choice_of_model_and_what_it_cost_are_read_back(tmp_path, monkeypatch):
+    from app import source_model
     monkeypatch.delenv('VVS_ASSIGNMENT_MODEL', raising=False)
+    monkeypatch.setattr(source_model, 'configured', lambda: False)
     assert ai_models.default() == ai_models.NONE and ai_models.transport('none') is None
-    monkeypatch.setenv('VVS_ASSIGNMENT_MODEL', '1')
+    # Astra is chosen from the start once the server holds the key ...
+    monkeypatch.setattr(source_model, 'configured', lambda: True)
     assert ai_models.default() == ai_models.ASTRA
+    # ... unless the operator turned the default off
+    monkeypatch.setenv('VVS_ASSIGNMENT_MODEL', '0')
+    assert ai_models.default() == ai_models.NONE
     record = {'model': {'status': 'COMPLETED', 'result': {'usage': [
         {'tokens_in': 4000, 'tokens_out': 200, 'cached_tokens': 3000, 'usd': 0.0084},
         {'tokens_in': 1000, 'tokens_out': 100, 'cached_tokens': 0, 'usd': 0.006}]}},

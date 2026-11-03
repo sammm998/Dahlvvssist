@@ -284,6 +284,11 @@ spåra.
 Det finns fyra ställen där en modell *kan* kopplas in, alla utanför mätvägen, alla avstängda utan nyckel, och
 ingen av dem kan hitta på en meter:
 
+**Valet innan en analys startar.** Rutan "Välj AI-modell" har GPT-6 Astra förvald och ifylld så snart tjänsten
+har en OpenAI-nyckel; utan nyckel är "Utan AI" förvalt. Den som startar analysen kan alltid välja en annan modell
+eller ingen, och det senaste egna valet kommer man ihåg i webbläsaren. Operatören kan stänga av förvalet med
+`VVS_ASSIGNMENT_MODEL=0`.
+
 ### 3.1 Andra läsaren (`semantics/astra.py`, transport i `engine/tools/astra_transport.py`)
 
 *Modell:* OpenAI, standard `gpt-6-astra` (miljövariabeln `VVS_SECOND_READER_MODEL`), via Responses-API:et.

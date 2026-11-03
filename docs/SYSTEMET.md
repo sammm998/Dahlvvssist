@@ -316,6 +316,15 @@ bladet än så delas på flera anrop i följd, så att ingen beteckning, inget r
 syns i översikten (`backend/app/source_model.py`, `_zoom_groups`). Översikten är densamma i varje anrop och
 cachas hos leverantören.
 
+**Svepet över det som är kvar** (`completeness_check.py`, `AssignmentTransport.sweep`). Efter frågorna står ofta
+något oförklarat kvar: ett onämnt rör ingen etikett når, en etikett som inte namngav något rör, frågor som taket
+(`MAX_QUESTIONS`, 120) lämnade. De delar av bladet där sådant står och som modellen inte redan sett inzoomat visas
+för den en gång, högst `SWEEP_MAX_TILES` (12) rutor, sex per anrop, alltså högst två extra anrop per blad. Ett
+blad där allt är förklarat kostar inget. Modellen svarar bara med beteckningar den ser där och som läsningen inte
+läste; en sådan erbjuds de onämnda rören vid den, bara om bladet självt skriver samma beteckning med dimension
+någon annanstans, och det modellen namnger så står som att granska. Annat redovisas som "sett, inte läst".
+Rutor, anrop och frågor taket lämnade står på raden "Läst med …". `VVS_SHEET_SWEEP=0` stänger av svepet.
+
 ### 3.1 Andra läsaren (`semantics/astra.py`, transport i `engine/tools/astra_transport.py`)
 
 *Modell:* OpenAI, standard `gpt-6-astra` (miljövariabeln `VVS_SECOND_READER_MODEL`), via Responses-API:et.

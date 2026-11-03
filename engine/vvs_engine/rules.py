@@ -382,6 +382,16 @@ RULES: tuple[Rule, ...] = (
     Rule("agent.edits.LARGE_CHANGE_M", G_LIMIT, "När en rättelse är stor",
          "En föreslagen ändring större än så räknas som stor och redovisas som sådan.",
          "meter", 50.0, 1.0, 1000.0, None, True),
+    Rule("source_rules.completeness_check.MAX_QUESTIONS", G_LIMIT, "Modellens kompletteringsfrågor per blad",
+         "Med en AI-modell vald frågas den efter läsningen om etiketter som inte namngav något rör och om onämnda "
+         "stråk. Etiketterna utan rör och de längsta stråken frågas först; det som taket lämnar redovisas på bladet "
+         "som inte frågat. Ett högre tak ser mer och kostar mer.",
+         "antal", 120, 0, 1000, None, True),
+    Rule("source_rules.completeness_check.SWEEP_MAX_TILES", G_LIMIT, "Rutor modellen sveper per blad",
+         "De delar av bladet där något fortfarande är oförklarat och som ingen fråga visat modellen inzoomat visas "
+         "för den en gång, högst så här många rutor om 320 pt, sex per anrop. Ett blad där allt är förklarat kostar "
+         "inget extra. 0 stänger av svepet.",
+         "antal", 12, 0, 60, None, True),
 )
 
 

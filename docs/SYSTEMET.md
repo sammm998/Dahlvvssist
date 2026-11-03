@@ -289,6 +289,13 @@ har en OpenAI-nyckel; utan nyckel är "Utan AI" förvalt. Den som startar analys
 eller ingen, och det senaste egna valet kommer man ihåg i webbläsaren. Operatören kan stänga av förvalet med
 `VVS_ASSIGNMENT_MODEL=0`.
 
+**Vad modellen får se.** Varje fråga till den valda modellen bär hela bladet som översikt och inzoomade utsnitt
+(320 pt av bladet, 768 bildpunkter) av allt frågan gäller: rörets egna punkter, varje kandidatbeteckning och
+båda ändarna av dess hänvisningslinje. Ett anrop rymmer högst sex utsnitt; frågor spridda över fler delar av
+bladet än så delas på flera anrop i följd, så att ingen beteckning, inget rör och ingen hänvisningslinje bara
+syns i översikten (`backend/app/source_model.py`, `_zoom_groups`). Översikten är densamma i varje anrop och
+cachas hos leverantören.
+
 ### 3.1 Andra läsaren (`semantics/astra.py`, transport i `engine/tools/astra_transport.py`)
 
 *Modell:* OpenAI, standard `gpt-6-astra` (miljövariabeln `VVS_SECOND_READER_MODEL`), via Responses-API:et.

@@ -13,14 +13,31 @@ import os
 DETAIL_TILES = int(os.environ.get('VVS_DETAIL_TILES', '6'))
 
 
+CELL = 320    # pt of sheet per detail crop, before its margin
+
+
+def finite(p):
+    return len(p) >= 2 and math.isfinite(p[0]) and math.isfinite(p[1])
+
+
+def tally(questions):
+    """Counter of the sheet cells the questions' places fall in."""
+    tiles=Counter()
+    for q in questions:
+        # Endpoints and intermediate bends locate the actual questioned ink; label and leader ends what may name it.
+        for p in q.get('points', []):
+            if finite(p):tiles[(max(0,int(p[0]//CELL)),max(0,int(p[1]//CELL)))]+=1
+    return tiles
+
+
+def cells(questions):
+    return set(tally(questions))
+
+
 def visual_evidence(source_path, page_number, questions):
     import pymupdf
     from vvs_engine.pdf.extract import _inventory_annotations, _set_markup_aside
-    tiles=Counter()
-    for q in questions:
-        # Endpoints and intermediate bends locate the actual questioned ink.
-        for x,y in q.get('points', []):
-            if math.isfinite(x) and math.isfinite(y):tiles[(max(0,int(x//320)),max(0,int(y//320)))]+=1
+    tiles=tally(questions)
     with _RENDER_LOCK, pymupdf.open(source_path) as doc:
         page=doc[page_number]
         report=_set_markup_aside(page,_inventory_annotations(page),keep=False)
@@ -29,7 +46,7 @@ def visual_evidence(source_path, page_number, questions):
         bounds=page.rect
         regions=[('overview',bounds)]
         for (x,y),_ in sorted(tiles.items(),key=lambda v:(-v[1],v[0]))[:DETAIL_TILES]:
-            clip=pymupdf.Rect(x*320-40,y*320-40,(x+1)*320+40,(y+1)*320+40)&bounds
+            clip=pymupdf.Rect(x*CELL-40,y*CELL-40,(x+1)*CELL+40,(y+1)*CELL+40)&bounds
             if not clip.is_empty:regions.append(('detail',clip))
         content=[];audit=[]
         for kind,clip in regions:

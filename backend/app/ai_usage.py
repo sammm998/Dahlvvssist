@@ -69,4 +69,9 @@ def read_usage(out_dir, choice):
         # the model's second look for labels the reading missed (engine completeness_check.py)
         'missed_checked': sum(c.get('questions') or 0 for c in checks),
         'missed_named': sum(c.get('named') or 0 for c in checks),
+        'missed_not_asked': sum(c.get('not_asked') or 0 for c in checks),
+        # ...and the sweep over the parts of the sheet no question showed it up close
+        'swept_tiles': sum(c.get('swept_tiles') or 0 for c in checks),
+        'sweep_requests': sum(1 for r in used if r.get('purpose') == 'sheet_sweep'),
+        'sweep_named': sum(c.get('sweep_named') or 0 for c in checks),
     }

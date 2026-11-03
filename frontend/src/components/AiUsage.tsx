@@ -15,6 +15,8 @@ export function AiUsage({ usage }: { usage?: any }) {
         {" · "}{usage.usd == null ? tr("pris okänt") : `$${usage.usd.toFixed(2)}`}</>}
       {none && <> · {tr("ingen AI-kostnad")}</>}
       {!none && usage.missed_checked > 0 && <> · {tr("kontroll av missade")}: {NUM.format(usage.missed_named)} {tr("rör namngivna, att granska")}</>}
+      {!none && usage.swept_tiles > 0 && <> · {tr("svep")}: {NUM.format(usage.swept_tiles)} {tr("rutor")}, {NUM.format(usage.sweep_requests ?? 0)} {tr("anrop")}</>}
+      {!none && usage.missed_not_asked > 0 && <> · {NUM.format(usage.missed_not_asked)} {tr("frågor ej ställda (taket)")}</>}
       {usage.fell_back_to_rules && <> · {tr("modellen svarade inte, reglerna läste bladet")}</>}
     </p>
   );

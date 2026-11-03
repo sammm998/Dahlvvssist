@@ -25,10 +25,13 @@ def configured():
 
 
 class AssignmentTransport:
-    def __init__(self, client, model, style=None, page=None, request_cache=None, places=None):
+    def __init__(self, client, model, style=None, page=None, request_cache=None, places=None, shown=None):
         from .model_request_cache import ModelRequestCache
         # {label id: [(x, y)]}: where each label and its leader are, so the detail crops show them too
         self.places = places or {}
+        # {page: {cell}}: the parts of each sheet the model has been shown up close, shared by every copy of the
+        # transport, so the sweep never pays to show the same part twice
+        self.shown = shown if shown is not None else {}
         self.request_cache = request_cache if request_cache is not None else ModelRequestCache()
         self.client = client
         self.model = model
@@ -39,14 +42,57 @@ class AssignmentTransport:
         self.page = page
 
     def for_style(self, style):
-        return type(self)(self.client, self.model, style, self.page, self.request_cache, self.places)
+        return type(self)(self.client, self.model, style, self.page, self.request_cache, self.places, self.shown)
 
     def for_page(self, page):
         return type(self)(self.client, self.model, self.style, (page.source_path, page.info.index), self.request_cache,
-                          self.places)
+                          self.places, self.shown)
 
     def with_places(self, places):
-        return type(self)(self.client, self.model, self.style, self.page, self.request_cache, places)
+        return type(self)(self.client, self.model, self.style, self.page, self.request_cache, places, self.shown)
+
+    @property
+    def cell(self):
+        from .drawing_evidence import CELL
+        return CELL
+
+    def _remember(self, images):
+        with self.lock:
+            seen = self.shown.setdefault(tuple(self.page or ()), set())
+            seen.update(tuple(a['cell']) for a in images if a.get('cell'))
+
+    def sweep(self, places, read, max_tiles):
+        """Show the model the parts of the sheet where something is unexplained and that it has not seen up close,
+        at most `max_tiles` of them, busiest first; return ([{'text', 'cell'}] it saw there and the reading did not
+        read, how many cells were shown). Nothing is shown, and nothing paid, when every such part was seen."""
+        from vvs_engine.source_rules.completeness_check import SWEEP_SCHEMA, SWEEP_SYSTEM
+        from .drawing_evidence import CELL, DETAIL_TILES, render_cells, tally
+        if not (self.page and self.page[0]) or max_tiles <= 0:
+            return [], 0
+        with self.lock:
+            seen = set(self.shown.get(tuple(self.page), ()))
+        todo = [c for c, _ in sorted(tally([{'points': places}]).items(), key=lambda v: (-v[1], v[0]))
+                if c not in seen][:max_tiles]
+        found = []
+        for i in range(0, len(todo), DETAIL_TILES):
+            visual, images = render_cells(*self.page, todo[i:i + DETAIL_TILES])
+            self._remember(images)
+            overview, details = visual[:2], visual[2:]
+            tiles = [a for a in images if a.get('cell')]
+            listing = [{'tile': k, 'pdf_rect': a['rect'],
+                        'labels_already_read': sorted({t for t, r in read if t and r
+                                                       and a['rect'][0] <= (r[0] + r[2]) / 2 <= a['rect'][2]
+                                                       and a['rect'][1] <= (r[1] + r[3]) / 2 <= a['rect'][3]})}
+                       for k, a in enumerate(tiles)]
+            content = [{"type": "input_text", "text": json.dumps({'tiles': listing}, ensure_ascii=False)}] + details
+            answer, record = self._send(SWEEP_SYSTEM, overview, content, schema=SWEEP_SCHEMA, key='seen')
+            with self.lock:
+                self.usage.append(dict(record, drawing_images=images, purpose='sheet_sweep', tiles=len(tiles)))
+            for item in answer if isinstance(answer, list) else []:
+                k = item.get('tile') if isinstance(item, dict) else None
+                if isinstance(k, int) and 0 <= k < len(tiles) and str(item.get('text') or '').strip():
+                    found.append({'text': str(item['text']).strip()[:60], 'cell': list(tiles[k]['cell'])})
+        return found, len(todo)
 
     def _looked_at(self, question):
         """Every place a question is about: its pipe's points, and each candidate's label and leader ends."""
@@ -92,6 +138,7 @@ class AssignmentTransport:
         if self.page and self.page[0] and questions:
             from .drawing_evidence import visual_evidence
             visual, images = visual_evidence(*self.page, [self._looked_at(q) for q in questions])
+            self._remember(images)
             # The sheet overview is the same in every request about this page, so it goes first, right after the
             # instructions: the unchanging start of the request is what the provider caches and bills at a fraction.
             # It is sent as a message of its own: the cache matches whole messages, not the start of one.
@@ -118,6 +165,7 @@ class AssignmentTransport:
             from .drawing_evidence import visual_evidence
             places = [{'points': [f['at']]} for f in numbered if f.get('at')]
             visual, images = visual_evidence(*self.page, places)
+            self._remember(images)
             overview, details = visual[:2], visual[2:]
             content = [{"type": "input_text", "text": content}] + details
         verdicts, record = self._send(REVIEW_SYSTEM, overview, content, schema=REVIEW_SCHEMA, key='verdicts')

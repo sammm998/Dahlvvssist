@@ -23,6 +23,7 @@ const ROLE_HINT: Record<string, string> = {
 const FROM_SV: Record<string, string> = {
   usage: "sidan visade det", heading: "rubriken talade för koden", other_sheet: "ett annat blad i omgången",
   the_list_says_so: "ritningens förklaring", the_sheet_writes_it_as_a_pipe: "ritningens rörbeteckningar",
+  the_list_heading_says_so: "förklaringens egen rubrik",
 };
 
 type Entry = {

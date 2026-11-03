@@ -45,6 +45,14 @@ Läsvägen, i den ordning den körs (`engine/vvs_engine/pipeline.py`):
 | 9 | **Skala och mått.** Skalan läses ur skaltexten och verifieras mot den ritade skalstocken; skiljer de sig är det en konflikt och inte ett medelvärde. Horisontella meter mäts längs geometrin. Vertikala meter finns bara med uttryckligt stöd - en våningshöjd användaren anger, eller höjdangivelser på bladet. | `measure/` |
 | 10 | **Avstämning och artefakter.** Allt bladet ritade summeras: mätt, tvetydigt, påpekat men onämnt, onämnt, bortvalt. Summan ska stämma med det ritade, och avvikelsen redovisas i stället för att justeras bort. Allt skrivs som filer så att varje meter går att spåra bakåt (`why`). | `reconcile.py`, `output/` |
 
+**Var varje rör börjar och slutar** (`pipes/frontier.py`, `pipe-extent-frontiers.json`). Varje ände på varje rör får
+ett skäl: annan dimension, annat system, stigare, ritad komponent, bladets kant, fri ände - eller, där läsningen
+tappar meter, oägd fortsättning och bruten kontinuitet. Ett rör delas i mätsektioner vid varje nod den inbyggda
+läsaren sätter, så att en höjd kan knytas till rätt bit. En skarv där samma rör med samma namn fortsätter i nästa
+sektion är ingen ände och redovisas inte som en (`SECTION_JOINT`); den räknas bara i `section_joints`. Förut stod
+varje sådan skarv som "något läsningen inte kan sätta ord på", tolv tusen av korpusens femton tusen ändar, och de
+verkliga ändarna syntes inte bland dem.
+
 Efter mätningen kommer **granskningen** (`review/`): agenter som frågar om resultatet är trovärdigt - är det
 ritade röret redovisat, finns bladets alla beteckningar i mängdtabellen, är längder och dimensioner fysiskt
 rimliga, hänger nätet ihop, håller skalan. De ändrar ingenting; en granskning som kunde ändra resultatet skulle
@@ -218,6 +226,18 @@ S och 5, I och 1, B och 8). Dessa regler gör att ett sådant blad mängdas i st
 * **Mediet före LEDNING, genom olästa bokstäver** (`semantics/legend.py`, `role_from_words`). KALLVATTENLEDNING
   är kallvatten, och SPI??VATTEN?EDNING är spillvatten: ett efterled LEDNING skärs av, och högst två olästa
   tecken godtas i ordet.
+* **Tätt satta rader hålls isär** (`text/strokes.py`, `_lines_by_full_letters`). Ett kommatecken vid en rads fot
+  och lösa tvärstreck i nästa rads E och T band ihop två listrader till en rad frågetecken, och koden bredvid blev
+  utan beskrivning och togs för en rubrik (VV1 TAPPVARMVATTEN, hela VENTILER-avsnittet). En sammanhållen rad som är
+  högre än en textrad delas nu efter var dess bokstäver i full höjd står, och småbitarna går till närmaste rad. Ett
+  skiljetecken vid fötterna på bokstäverna bredvid är radens egen interpunktion, inte en prick över bokstaven under.
+* **En bit av ett ord ersätter inte ordet** (`semantics/annotation.py`, `_a_piece_of`). Ringen i ett Å, läst för
+  sig som `O`, ersatte `PÅFYLLNINGSVENTIL` som om de vore samma text två gånger. Ett eller två tecken inne i en
+  fullt läst rad av samma slag är en del av raden.
+* **Listans rubriker säger vad koderna är** (`semantics/legend.py`, `role_from_heading`). Under SYSTEM står
+  system, under MATERIAL och ISOLERINGTYP material- och isolerklasser. `S2 KALLVATTEN` under ISOLERINGTYP är
+  isoleringen för kallvatten och inget kallvattensystem. En kod som står i två avsnitt (`S1` spillvatten och `S1`
+  köldbärarisolering) öppnar ett rörnamn som det system ett av avsnitten säger att den är.
 * **Senare led i en parbeteckning** (`assign_roles`). I `VV02-3-/KV02-3-15` öppnar KV ett rör lika säkert som VV.
 * **Systemnumret med siffror** (`number_as_listed`). Där en listkod säger att ett systemnummer står (KVXX-53),
   skrivs KVO1 som KV01.

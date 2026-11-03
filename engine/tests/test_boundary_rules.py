@@ -626,10 +626,12 @@ def test_a_legend_section_settles_a_code_this_page_did_not_use():
             self.text, self.system_token, self.dn = text, head, dn
             self.bbox = (50.0, 400.0, 90.0, 408.0)
 
-    lg = DrawingLegend(entries=[entry("KV1", "SYSTEM TAPPVATTEN"), entry("VV1", "SYSTEM TAPPVATTEN"),
-                                entry("VVC1", "SYSTEM TAPPVATTEN"), entry("KB1", "SYSTEM TAPPVATTEN"),
-                                entry("S1", "SYSTEM SPILLVATTEN"), entry("S3", "SYSTEM SPILLVATTEN"),
-                                entry("X31", "MATERIAL ROR"), entry("P2", "MATERIAL ROR")])
+    # headings that group without naming a kind: a heading that says SYSTEM or MATERIAL settles its codes by its
+    # own word (test_everything_a_legend_lists_is_read); one that names only a medium is settled by usage
+    lg = DrawingLegend(entries=[entry("KV1", "TAPPVATTEN"), entry("VV1", "TAPPVATTEN"),
+                                entry("VVC1", "TAPPVATTEN"), entry("KB1", "TAPPVATTEN"),
+                                entry("S1", "SPILLVATTEN"), entry("S3", "SPILLVATTEN"),
+                                entry("X31", "ROR"), entry("P2", "ROR")])
     # the page happens to carry dimensioned labels for two of the tappvatten codes and one spillvatten code
     assign_roles(lg, [D("KV1-X31-16", "KV1", 16), D("VV1-X31-16", "VV1", 16), D("S3-P2-110", "S3", 110)])
     assert lg.systems() >= {"KV1", "VV1", "S3"}, "vad sidan själv visar står kvar"

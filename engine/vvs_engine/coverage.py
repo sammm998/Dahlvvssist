@@ -48,7 +48,9 @@ def coverage_validity(cov: dict[str, Any], anchors: list, reconciliation: dict |
     amb = float(cov.get("ambiguous_pt") if cov.get("ambiguous_pt") is not None else (cov.get("ambiguous_m") or 0.0))
     un = float(cov.get("unowned_pt") if cov.get("unowned_pt") is not None else (cov.get("unowned_m") or 0.0))
     fr = cov.get("frontiers") or {}
-    n_fr = fr.get("frontiers") or 0
+    # every edge of every measuring section, the joints to the same pipe's next section included - the share
+    # DEGRADED_LOSSY_FRONTIERS was set against, from before the joints were told apart from the pipes' real ends
+    n_fr = (fr.get("frontiers") or 0) + (fr.get("section_joints") or 0)
     lossy = fr.get("lossy_boundaries") or 0
     with_dn = cov.get("designations_with_dn")
     n_des = cov.get("designations_read")

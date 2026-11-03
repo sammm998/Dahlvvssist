@@ -525,18 +525,11 @@ def _split_and_order(page: RawPage, cs: list[StrokeComponent], H: float, angle: 
     cs, pre_dia = _attach_tiny_marks(cs, d, n, H)
     # perpendicular clustering into rows
     items = sorted(cs, key=lambda c: (c.cx * n[0] + c.cy * n[1], c.cid))
-    rows_c: list[list[StrokeComponent]] = []
-    cur: list[StrokeComponent] = []
-    last_pos = None
-    for c in items:
-        pos = c.cx * n[0] + c.cy * n[1]
-        if last_pos is not None and pos - last_pos > 0.55 * H:
-            rows_c.append(cur)
-            cur = []
-        cur.append(c)
-        last_pos = pos
-    if cur:
-        rows_c.append(cur)
+    rows_c = []
+    for run in _chain(items, n, H):
+        # a run standing taller than a line of text is two lines a small piece tied together; split it by its letters
+        split = _lines_by_full_letters(run, n, H) if _across(run, n) > 1.6 * H else None
+        rows_c.extend(split or [run])
     out: list[RowCluster] = []
     for rc in rows_c:
         # for text reading direction: angle in [0,180) -> choose direction so that reading goes left->right (or top->bottom for vertical)
@@ -633,6 +626,87 @@ def _merge_diacritics(groups, rd, H: float):
     return out, ndia
 
 
+def _chain(items: list[StrokeComponent], n, H: float) -> list[list[StrokeComponent]]:
+    """Rows as runs of components whose positions across the reading direction follow each other closely."""
+    rows_c: list[list[StrokeComponent]] = []
+    cur: list[StrokeComponent] = []
+    last_pos = None
+    for c in items:
+        pos = c.cx * n[0] + c.cy * n[1]
+        if last_pos is not None and pos - last_pos > 0.55 * H:
+            rows_c.append(cur)
+            cur = []
+        cur.append(c)
+        last_pos = pos
+    if cur:
+        rows_c.append(cur)
+    return rows_c
+
+
+def _across(cs: list[StrokeComponent], n) -> float:
+    """How far a set of components reaches across the reading direction."""
+    lo = min(min(c.bbox[0] * n[0], c.bbox[2] * n[0]) + min(c.bbox[1] * n[1], c.bbox[3] * n[1]) for c in cs)
+    hi = max(max(c.bbox[0] * n[0], c.bbox[2] * n[0]) + max(c.bbox[1] * n[1], c.bbox[3] * n[1]) for c in cs)
+    return hi - lo
+
+
+def _lines_by_full_letters(items: list[StrokeComponent], n, H: float) -> list[list[StrokeComponent]] | None:
+    """Stacked lines of text told apart by their full-height letters; None when they show one line or none.
+
+    Asked only of a run that stands taller than a line of text. Reading rows as runs of positions that follow each other closely lets a small piece standing between two
+    lines - a comma at the foot of one, the loose cross-bar of an E or a T at the head of the next - bridge
+    them, and in a list set close the two lines were read as one row of question marks: three of a legend's
+    valve codes and two of its fixtures lost their descriptions that way and were taken for headings. A line is
+    where its full-height letters stand. Those are found first; every other piece then goes to the line whose
+    letters it is nearest, and a piece far from every line is left to stand on its own as before."""
+    def pos(c):
+        return c.cx * n[0] + c.cy * n[1]
+
+    def across(c):
+        return abs(n[0]) * c.w + abs(n[1]) * c.h
+    full = [c for c in items if across(c) >= 0.65 * H]
+    if len(full) < 4:
+        return None
+    bands: list[list[StrokeComponent]] = []
+    for c in sorted(full, key=lambda c: (pos(c), c.cid)):
+        if bands and pos(c) - pos(bands[-1][-1]) <= 0.55 * H:
+            bands[-1].append(c)
+        else:
+            bands.append([c])
+    # a line is two letters or more; a lone tall piece between lines (a slash, a bracket) is not a line of its own
+    bands = [b for b in bands if len(b) >= 2]
+    if len(bands) < 2:
+        return None
+    centres = [sum(pos(c) for c in b) / len(b) for b in bands]
+    lines: list[list[StrokeComponent]] = [[] for _ in bands]
+    loose: list[StrokeComponent] = []
+    for c in items:
+        k = min(range(len(centres)), key=lambda i: (abs(pos(c) - centres[i]), i))
+        if abs(pos(c) - centres[k]) <= 0.9 * H:
+            lines[k].append(c)
+        else:
+            loose.append(c)
+    return [line for line in lines if line] + (_chain(loose, n, H) if loose else [])
+
+
+def _on_own_baseline(ta, tn, tinfo, H: float) -> bool:
+    """A tiny mark that sits on the baseline of the letters beside it is that line's punctuation, not an accent.
+
+    A comma or a full stop stands at the foot of its own line. In a list set close - a legend whose rows are a
+    third of a letter apart - the next line's letters start just below it, and taken as the dot over the letter
+    under it, it tied the two lines into one: `VÄRMEVATTEN, SEKUNDÄR, LUFTBH.LA01` and `TAPPVARMVATTEN` beneath it
+    were read as one row of question marks, and the system it describes was lost from the sheet's list. An accent
+    sits above the top of its letter, where no neighbouring capital's foot is; a mark whose own foot is level with
+    the foot of a letter right beside it on its line stays with that line."""
+    for (aa, nn, _c) in tinfo:
+        beside = max(aa[0] - ta[1], ta[0] - aa[1])
+        if beside > 0.6 * H or beside < -0.05 * H:
+            continue
+        if abs(tn[1] - nn[1]) <= 0.3 * H and tn[0] > nn[0] + 0.3 * H:
+            return True
+    return False
+
+
 def _attach_tiny_marks(cs: list[StrokeComponent], d, n, H: float):
     """Merge tiny components (size < 0.35H) into the tall component directly below them (along -n).
     Returns (components, {cid: number of attached marks}). Merged components keep the tall component's cid."""
@@ -650,6 +724,8 @@ def _attach_tiny_marks(cs: list[StrokeComponent], d, n, H: float):
     consumed: set[str] = set()
     for t in tiny:
         ta = span(t, d); tn = span(t, n)
+        if _on_own_baseline(ta, tn, tinfo, H):
+            continue
         best = None
         for (aa, nn, c) in tinfo:
             ov = min(ta[1], aa[1]) - max(ta[0], aa[0])

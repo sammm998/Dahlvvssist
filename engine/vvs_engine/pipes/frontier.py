@@ -59,6 +59,11 @@ SHEET_EDGE = "SHEET_EDGE"
 FREE_END = "FREE_END"
 CLOSED_LOOP = "CLOSED_LOOP"
 UNSUPPORTED_STRUCTURE = "UNSUPPORTED_STRUCTURE"
+# Ingen kant alls: samma rör, med samma namn, fortsätter i nästa mätsektion. Ett rör delas i sektioner vid varje
+# nod den inbyggda läsaren sätter, så att en höjd kan knytas till rätt bit - men röret slutar inte där. Räknat som
+# en kant stod tolv tusen av korpusens femton tusen rörändar som "något läsningen inte kan sätta ord på", och
+# bladets verkliga ändar - en ventil, en stigare, ett annat system - försvann bland dem.
+SECTION_JOINT = "SECTION_JOINT"
 
 REASONS: dict[str, str] = {
     REAL_DN_BOUNDARY: "samma ledning fortsätter med en annan dimension",
@@ -138,9 +143,11 @@ def _beyond(pipe, g, st, q: int, declared_reason: str) -> tuple[str, dict[str, A
         if s.reason == declared_reason:
             return DECLARED_BOUNDARY, {"beyond": s.identity.key if s.identity else None, "rule": s.reason}
         other = s.identity
-        if other is None or other.key == ident.key:
-            return UNSUPPORTED_STRUCTURE, {"why": "samma identitet på andra sidan noden men inte samma rör",
-                                           "beyond": other.key if other else None, "beyond_reason": s.reason}
+        if other is not None and other.key == ident.key:
+            return SECTION_JOINT, {"beyond": other.key, "beyond_reason": s.reason}
+        if other is None:
+            return UNSUPPORTED_STRUCTURE, {"why": "bekräftat rör utan identitet på andra sidan noden",
+                                           "beyond": None, "beyond_reason": s.reason}
         if other.system != ident.system:
             return REAL_SYSTEM_BOUNDARY, {"beyond": other.key, "beyond_reason": s.reason}
         if other.stem == ident.stem and other.dn != ident.dn and other.dn is not None and ident.dn is not None:
@@ -249,7 +256,7 @@ def frontiers_of(page, graphs: dict, ownership, risers: dict | None = None,
         g = graphs[pipe.family]
         st = ownership.prim_states[pipe.family]
         comp = set(pipe.prim_ids)
-        found = 0
+        found = joints = 0
         for nid in pipe.nodes:
             node = g.nodes[nid]
             outside = [q for q in node.prims if q not in comp]
@@ -258,6 +265,8 @@ def frontiers_of(page, graphs: dict, ownership, risers: dict | None = None,
                 for q in outside:
                     r, det = _beyond(pipe, g, st, q, declared_reason)
                     by_reason.setdefault(r, []).append((q, det))
+                if by_reason.pop(SECTION_JOINT, None) is not None:
+                    joints += 1
                 for r, lst in sorted(by_reason.items()):
                     detail = dict(lst[0][1])
                     detail["prims"] = [q for q, _ in lst]
@@ -270,7 +279,9 @@ def frontiers_of(page, graphs: dict, ownership, risers: dict | None = None,
                 r, det = _terminal(pipe, g, st, node, comp, page, node_idx, graphs, ownership.prim_states, riser_pts, symbols)
                 out.append(Frontier(pipe.physical_pipe_id, pipe.family, nid, node.x, node.y, r, det))
                 found += 1
-        if not found:
+        # how many of its edges are joints to its own next section: an edge accounted for, not an end
+        pipe.section_joints = joints
+        if not found and not joints:
             n0 = g.nodes[pipe.nodes[0]] if pipe.nodes else None
             out.append(Frontier(pipe.physical_pipe_id, pipe.family, n0.nid if n0 else None,
                                 n0.x if n0 else 0.0, n0.y if n0 else 0.0, CLOSED_LOOP,
@@ -291,12 +302,14 @@ def summary(frontiers: list[Frontier], pipes, meters_per_pt: float | None) -> di
                 seen_unowned.add(key)
                 unowned_pt += float(f.detail.get("unowned_pt") or 0.0)
     with_front = {f.pipe_id for f in frontiers}
-    silent = sorted(p.physical_pipe_id for p in pipes if p.physical_pipe_id not in with_front)
+    silent = sorted(p.physical_pipe_id for p in pipes
+                    if p.physical_pipe_id not in with_front and not getattr(p, "section_joints", 0))
+    joints = sum(getattr(p, "section_joints", 0) for p in pipes)
     real = sum(n for r, n in counts.items() if r in REAL)
     lossy = sum(n for r, n in counts.items() if r in LOSSY)
     open_ = sum(n for r, n in counts.items() if r in OPEN)
     return {"frontiers": len(frontiers), "pipes": len(pipes), "silent_pipes": silent,
-            "by_reason": dict(sorted(counts.items())),
+            "by_reason": dict(sorted(counts.items())), "section_joints": joints,
             "real_boundaries": real, "lossy_boundaries": lossy, "open_boundaries": open_,
             "unowned_beyond_pt": round(unowned_pt, 2),
             "unowned_beyond_m": (round(unowned_pt * meters_per_pt, 2) if meters_per_pt else None)}

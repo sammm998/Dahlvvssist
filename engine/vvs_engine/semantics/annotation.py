@@ -25,6 +25,10 @@ def _R(rule_id, default):
 # gånger. Halva rutan är långt över vad två olika etiketter någonsin delar och långt under vad två läsningar av
 # samma etikett delar - de ligger i praktiken ovanpå varandra.
 SAME_PLACE_SHARE = 0.5
+# ...men en rad som är en liten bit av en annan - ringen i ett Å läst som `O` inne i ordet - är en del av den,
+# inte samma text en gång till. Två läsningar av samma etikett har nästan samma ruta; en del av en rad har en
+# bråkdel av radens yta.
+PART_OF_ROW_SHARE = 0.2
 
 # Hur mycket längre bort blockets näst närmaste etikett måste ligga för att den närmaste ska få svara. Mätt på
 # ritningar där två etiketter står staplade över var sitt rör: den som linjen hör till ligger tre till fem
@@ -64,6 +68,20 @@ def _overlap_share(a: tuple, b: tuple) -> float:
     return (ix * iy) / small if small > 0 else 0.0
 
 
+def _area(r: TextRow) -> float:
+    return max(r.bbox[2] - r.bbox[0], 0.0) * max(r.bbox[3] - r.bbox[1], 0.0)
+
+
+def _a_piece_of(small: TextRow, large: TextRow) -> bool:
+    """Whether `small` is a stray piece of the row `large` rather than another reading of the same text.
+
+    Only a character or two, read the same way as the row it lies in, and only inside a row read in full: a large
+    row of unread strokes laid over real text is not a word the text is a piece of, and never takes its place."""
+    if small.source != large.source or len(small.text.strip()) > 2 or "?" in large.text:
+        return False
+    return _area(small) < _R("semantics.annotation.PART_OF_ROW_SHARE", PART_OF_ROW_SHARE) * _area(large)
+
+
 def one_reading_per_place(rows: list[TextRow], report: dict | None = None) -> list[TextRow]:
     """En läsning per ställe på bladet.
 
@@ -88,7 +106,13 @@ def one_reading_per_place(rows: list[TextRow], report: dict | None = None) -> li
             if _overlap_share(line.bbox, other.bbox) <= _R("semantics.annotation.SAME_PLACE_SHARE", SAME_PLACE_SHARE):
                 continue
             dropped += 1
-            if _reading_quality(line) > _reading_quality(other):
+            small, large = sorted((line, other), key=_area)
+            if _a_piece_of(small, large):
+                # A piece lying inside a row many times its size is a part of it - the ring of an Å read on its own
+                # as `O` - and not the same text written twice. As the better-read of the two it replaced
+                # `PÅFYLLNINGSVENTIL` in a legend, and the code it described was left without a description.
+                kept[i] = large
+            elif _reading_quality(line) > _reading_quality(other):
                 kept[i] = line
             break
         else:

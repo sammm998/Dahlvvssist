@@ -202,10 +202,14 @@ class DrawingLegend:
         if c is None:
             tokens = split_tokens((head or '').upper())
             return 'system' if tokens and tokens[0] in self.usage_systems else None
-        for e in self.entries:
-            if e.code.upper() == c:
-                return e.role
-        return None
+        # A list may write one code in two of its sections - `S1` a waste system under SYSTEM and an insulation
+        # class under ISOLERINGTYP. A label opening with it is the system: the section that makes it a run speaks
+        # for the head of a label, the one that makes it a covering for what follows the slash.
+        roles = [e.role for e in self.entries if e.code.upper() == c]
+        for role in ("system", "component"):
+            if role in roles:
+                return role
+        return roles[0] if roles else None
 
     def names_a_pipe(self, designation) -> bool:
         """Whether the sheet's own designation list says this label names a pipe.
@@ -538,7 +542,7 @@ def learn_roles(vocab: DrawingLegend | None, sheet: DrawingLegend) -> None:
         return
     by_code = vocab.by_code
     for e in sheet.entries:
-        local_words = sheet.own and e.role_from == "the_list_says_so"
+        local_words = sheet.own and e.role_from in LIST_SAYS
         if e.role_from not in ("usage", "the_sheet_writes_it_as_a_pipe") and not local_words:
             continue
         v = by_code.get(e.code.upper())
@@ -608,6 +612,26 @@ def _words(text: str, keep_unread: bool = False) -> list[str]:
     if cur:
         out.append("".join(cur))
     return out
+
+
+def role_from_heading(heading: str) -> str | None:
+    """What the list's own section title says its codes are, or None when it says nothing about that.
+
+    A designation list groups its codes under titles, and the titles name the kind: SYSTEM over the media,
+    MATERIAL over the pipe materials, ISOLERINGTYP over the insulation classes. That is the list answering the
+    question in its own words, as plainly as a description does - more plainly where the description names a
+    medium only because the class is for it: `S2 KALLVATTEN` under ISOLERINGTYP is the insulation for cold water,
+    not a cold water system. Only the title's own word is read; a title that names neither kind decides nothing."""
+    for w in _words(heading):
+        if w.startswith("SYSTEM"):
+            return "system"
+        if w.startswith("MATERIAL") or w.startswith("ISOLER") or any(w.startswith(h) for h in MATERIAL_HEADS):
+            return "material"
+    return None
+
+
+# where a role was taken from what the list writes, rather than from how the drawing uses the code
+LIST_SAYS = ("the_list_says_so", "the_list_heading_says_so")
 
 
 def role_from_words(description: str) -> str | None:
@@ -749,8 +773,11 @@ def assign_roles(legend: DrawingLegend, designations, prior: dict[str, str] | No
         # bredvid koden; att gissa det ur användningen när det står där är att gissa i onödan - och gissningen
         # blev fel åt det dyra hållet, med kanalmeter under ett tilluftsdon.
         said = role_from_words(e.description)
+        titled = role_from_heading(e.heading)
         if said == "component" and c in writes_a_pipe:
             e.role, e.role_from = "system", "the_sheet_writes_it_as_a_pipe"
+        elif titled is not None and not (said == "component" and titled == "system"):
+            e.role, e.role_from = titled, "the_list_heading_says_so"
         elif said is not None:
             e.role, e.role_from = said, "the_list_says_so"
         elif c in opens:
@@ -770,7 +797,7 @@ def assign_roles(legend: DrawingLegend, designations, prior: dict[str, str] | No
     if prior:
         for e in legend.entries:
             was = prior.get(e.code.upper())
-            if e.role == "material" and e.role_from != "the_list_says_so" and was in ("system", "component"):
+            if e.role == "material" and e.role_from not in LIST_SAYS and was in ("system", "component"):
                 e.role, e.role_from = was, "other_sheet"
 
     # A legend can omit a numbered variant which the plan explicitly labels.

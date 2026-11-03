@@ -21,7 +21,7 @@ const NOTES: Record<string, string> = {
 export default function AiModelDialog() {
   const [open, setOpen] = useState<{ count: number } | null>(null);
   const [choices, setChoices] = useState<Choice[]>([]);
-  const [value, setValue] = useState<string>("none");
+  const [value, setValue] = useState<string>("gpt-6-astra");
   const answer = useRef<((v: string | null) => void) | null>(null);
 
   useEffect(() => {
@@ -31,9 +31,12 @@ export default function AiModelDialog() {
       api.analysisOptions().then((o: any) => {
         const list: Choice[] = o.ai_models ?? [];
         setChoices(list);
+        // Förvalt: det man själv valde senast, annars serverns standard (GPT-6 Astra när nyckeln finns).
         const last = lastAiModel();
-        setValue(list.find(c => c.id === last && c.available) ? last! : (o.ai_default ?? "none"));
-      }).catch(() => setChoices([{ id: "none", label: "Utan AI", available: true }]));
+        const usable = (id: string | null | undefined) => !!id && list.some(c => c.id === id && c.available);
+        setValue(usable(last) ? last! : usable(o.ai_default) ? o.ai_default
+          : usable("gpt-6-astra") ? "gpt-6-astra" : "none");
+      }).catch(() => { setChoices([{ id: "none", label: "Utan AI", available: true }]); setValue("none"); });
     }));
     return () => registerAiModelAsker(null);
   }, []);
@@ -56,7 +59,7 @@ export default function AiModelDialog() {
             <label key={c.id} className={`aidlg-opt${value === c.id ? " on" : ""}${c.available ? "" : " off"}`}>
               <input type="radio" name="aimodel" value={c.id} checked={value === c.id} disabled={!c.available}
                 onChange={() => setValue(c.id)} />
-              <span><b>{tr(c.label)}</b><br />
+              <span><b>{tr(c.label)}</b>{c.id === "gpt-6-astra" ? <span className="muted small"> · {tr("förvald")}</span> : null}<br />
                 <span className="muted small">{c.available ? tr(NOTES[c.id] ?? "")
                   : tr("Inte ansluten på servern - nyckeln saknas i Railway.")}</span></span>
             </label>

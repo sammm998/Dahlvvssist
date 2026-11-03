@@ -1,6 +1,7 @@
 /* The question "which AI model reads this?", asked before an analysis starts. api.analyze asks it; the dialog in
  * the app frame (components/AiModelDialog) answers it. Kept free of imports so both can use it. */
-export const AI_MODEL_KEY = "fc.aiModel";
+/* v2: GPT-6 Astra is chosen from the start; a choice remembered before that default existed is not carried over. */
+export const AI_MODEL_KEY = "fc.aiModel.v2";
 
 type Ask = (count: number) => Promise<string | null>;
 let asker: Ask | null = null;

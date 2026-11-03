@@ -24,8 +24,13 @@ def model_id(choice):
 
 
 def default():
-    """What a reading uses when nobody chose: the rules, unless the operator turned the model on."""
-    return ASTRA if os.environ.get('VVS_ASSIGNMENT_MODEL') == '1' else NONE
+    """What a reading uses when nobody chose: GPT-6 Astra whenever the server holds an OpenAI key, the rules alone
+    when it does not. The operator can turn the default off with VVS_ASSIGNMENT_MODEL=0; the person starting an
+    analysis can always pick another model or none."""
+    if os.environ.get('VVS_ASSIGNMENT_MODEL') == '0':
+        return NONE
+    from .source_model import configured as openai_ready
+    return ASTRA if openai_ready() else NONE
 
 
 def available():

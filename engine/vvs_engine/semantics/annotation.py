@@ -75,9 +75,13 @@ def _area(r: TextRow) -> float:
 def _a_piece_of(small: TextRow, large: TextRow) -> bool:
     """Whether `small` is a stray piece of the row `large` rather than another reading of the same text.
 
-    Only a character or two, read the same way as the row it lies in, and only inside a row read in full: a large
-    row of unread strokes laid over real text is not a word the text is a piece of, and never takes its place."""
+    Only a character or two, read the same way as the row it lies in, standing lower than the row's own letters - an
+    accent's ring or dots, not a letter - and only inside a row read in full: a large row of unread strokes laid
+    over real text is not a word the text is a piece of, and never takes its place; and a letter-sized `O` at the
+    head of a row `OOOO` is the same ring read twice, which the better reading settles as before."""
     if small.source != large.source or len(small.text.strip()) > 2 or "?" in large.text:
+        return False
+    if (small.bbox[3] - small.bbox[1]) >= 0.6 * max(large.height, 0.01):
         return False
     return _area(small) < _R("semantics.annotation.PART_OF_ROW_SHARE", PART_OF_ROW_SHARE) * _area(large)
 

@@ -43,6 +43,7 @@ LIST_MARGIN = 4.0               # how far outside its rows the list's own block 
 ALIGNED_SHARE = 0.6             # ...or the share of descriptions that share a left edge, which a note's do not
 MAX_CODE_LEN = 10
 DESC_GAP_ROWS = 12.0            # how far right of the code its description may start, in row heights
+LIST_BREAK_ROWS = 10.0         # a gap of more than this many of the list's own entry pitches ends the list
 COL_TOL = 3.0                   # how far two rows' left edges may differ and still be one column
 
 _INLINE = re.compile(r"^([^\s]{1,%d})\s+(\S.{2,})$" % _R("semantics.legend.MAX_CODE_LEN", MAX_CODE_LEN))
@@ -382,8 +383,35 @@ def _one_per_line(column: list[TextRow]) -> list[TextRow]:
     return kept
 
 
+def _one_block(entries: list[LegendEntry]) -> list[LegendEntry]:
+    """The list's own block of entries: the largest run whose entries follow each other within LIST_BREAK_ROWS of
+    their own pitch.
+
+    A designation list is set as one block, its sections a few lines apart. The same left edge often runs on
+    below it into the title block - the consultants' list, `V VVS-KONSULT AB`, `E ELKONSULT AB` - and read as
+    more of the list, a consultant's initial became a system code: `V`, opening the sheet's own number
+    `V50-02-421`, named it a pipe the length of the title block. The title block's other text stands on the same
+    edge, so the gap is measured between entries, not between rows."""
+    if len(entries) < 3:
+        return entries
+    ys = [e.bbox[1] for e in entries]
+    gaps = sorted(b - a for a, b in zip(ys, ys[1:]) if b - a > 0.5)
+    if not gaps:
+        return entries
+    pitch = gaps[len(gaps) // 2]
+    blocks, cur = [], [entries[0]]
+    for a, b in zip(entries, entries[1:]):
+        if b.bbox[1] - a.bbox[1] > _R("semantics.legend.LIST_BREAK_ROWS", LIST_BREAK_ROWS) * pitch:
+            blocks.append(cur)
+            cur = []
+        cur.append(b)
+    blocks.append(cur)
+    return max(blocks, key=len)
+
+
 def _candidate(rows: list[TextRow], found: dict, edge: float) -> list[LegendEntry]:
-    """The list that would be read off one left edge: its entries, under the headings standing above them."""
+    """The list that would be read off one left edge: its entries, under the headings standing above them - the
+    list's own block of them, not what the edge runs on into."""
     column = sorted((l for l in rows if edge - 0.1 <= l.bbox[0] <= edge + _R("semantics.legend.COL_TOL", COL_TOL)),
                     key=lambda l: (l.bbox[1], l.bbox[0]))
     column = _one_per_line(column)
@@ -396,7 +424,7 @@ def _candidate(rows: list[TextRow], found: dict, edge: float) -> list[LegendEntr
             continue
         entries.append(LegendEntry(code=f[0].strip().rstrip(".:,;"), description=f[1].strip(), heading=heading,
                                    bbox=tuple(line.bbox), page=getattr(line, "page", None)))
-    return entries
+    return _one_block(entries)
 
 
 def read_legend(lines: list[TextRow], designations=()) -> DrawingLegend:

@@ -87,12 +87,18 @@ class GraphTolerances:
     off_tol: float = 0.35       # pt, lateral offset of the continuation
     gap_slack: float = 0.5      # fraction of the gap mode accepted as deviation
     max_gap: float = 12.0       # pt, search window for a continuation
+    gap_window: float = 0.0     # pt either side of a gap size that still counts as that size when the family's
+                                # dash pattern is found; 0 = the gaps are exact and only the same size counts
 
 
 VECTOR_TOL = GraphTolerances()
 # A sheet read from its pixels (raster/) is exact to a pixel, not to an export's rounding: at 200 dpi a pixel is a
 # third of a point, and a centreline traced out of the ink may stand a pixel off its line or a degree askew.
-RASTER_TOL = GraphTolerances(ang_tol=4.0, off_tol=1.0)
+# The gaps of one dash pattern come out a pixel either way too: on a scanned plan whose pipes are all dash-dot
+# lines the commonest gap of 9 pt was read as 8.75, 9.0 and 9.25 in near equal parts, no single size reached the
+# share a pattern needs, no dash was joined to the next, and the sheet measured 24 m of 2,300. Counted within
+# a point and a half of pixels either way, the pattern is the third of all gaps it is.
+RASTER_TOL = GraphTolerances(ang_tol=4.0, off_tol=1.0, gap_window=0.5)
 
 
 def graph_tolerances(page) -> GraphTolerances:
@@ -796,6 +802,20 @@ def _symbol_bridges(nodes, pmap, prim_nodes, idx, symbols: SymbolIndex, family: 
     return [pairs[k] for k in sorted(pairs)]
 
 
+def _windowed_modes(hist: Counter, n: int, window: float) -> list[float]:
+    """Up to three gap sizes that recur through a family, each counted with the gaps within `window` of it, and
+    each more than a window from the ones already taken - so the pixel either side of one size is that size, and
+    not a second size of its own."""
+    counted = {g: sum(k for h, k in hist.items() if abs(h - g) <= window) for g in hist}
+    modes: list[float] = []
+    for g, cnt in sorted(counted.items(), key=lambda v: (-v[1], -hist[v[0]], v[0])):
+        if cnt < 0.15 * n or len(modes) == 3:
+            break
+        if all(abs(g - m) > 2 * window for m in modes):
+            modes.append(g)
+    return modes
+
+
 def build_graph(prims: list[Prim], family: str, tol: GraphTolerances | None = None,
                 symbols: SymbolIndex | None = None) -> PipeGraph:
     """Nodes: shared endpoints (within TOUCH_TOL) incl. proven T-junctions. Then bridge collinear micro-gaps
@@ -918,7 +938,10 @@ def build_graph(prims: list[Prim], family: str, tol: GraphTolerances | None = No
         # A dash-dot line has more than one gap in its pattern - dash to dot and dot to dash, or a dot the export
         # never drew as a stroke of its own - so every gap size that recurs through the family belongs to its
         # style. Taking only the commonest one leaves every second continuation of such a line unbridged.
-        gap_modes = [g for g, cnt in hist.most_common(3) if cnt >= 0.15 * len(gaps)]
+        if tol.gap_window > 0:
+            gap_modes = _windowed_modes(hist, len(gaps), tol.gap_window)
+        else:
+            gap_modes = [g for g, cnt in hist.most_common(3) if cnt >= 0.15 * len(gaps)]
         gap_mode = gap_modes[0] if gap_modes else None
     bridges = []
     merged_into: dict[int, int] = {}

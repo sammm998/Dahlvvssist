@@ -238,6 +238,11 @@ S och 5, I och 1, B och 8). Dessa regler gör att ett sådant blad mängdas i st
   system, under MATERIAL och ISOLERINGTYP material- och isolerklasser. `S2 KALLVATTEN` under ISOLERINGTYP är
   isoleringen för kallvatten och inget kallvattensystem. En kod som står i två avsnitt (`S1` spillvatten och `S1`
   köldbärarisolering) öppnar ett rörnamn som det system ett av avsnitten säger att den är.
+* **Listan slutar där den slutar** (`semantics/legend.py`, `_one_block`, `LIST_BREAK_ROWS` = 10). Samma vänsterkant
+  löper ofta vidare ned i namnrutan, och konsultlistan (`V VVS-KONSULT AB`, `E ELKONSULT AB`) lästes som mer av
+  listan: `V` blev ett system och bladets eget nummer `V50-02-421` mättes som ett rör, 184 m. Ett hopp mellan
+  listans poster på mer än tio postavstånd avslutar ett block, och listan är det största blocket. Listans egna
+  avsnitt ligger några rader isär och står kvar; på korpusens 33 blad föll bara noter och namnrutans rader bort.
 * **Senare led i en parbeteckning** (`assign_roles`). I `VV02-3-/KV02-3-15` öppnar KV ett rör lika säkert som VV.
 * **Systemnumret med siffror** (`number_as_listed`). Där en listkod säger att ett systemnummer står (KVXX-53),
   skrivs KVO1 som KV01.
@@ -272,6 +277,12 @@ S och 5, I och 1, B och 8). Dessa regler gör att ett sådant blad mängdas i st
 
 Ett inskannat blad med samma stämpel får ingen skala ur bilden: där skrivs skalan in för hand, och mängden granskas
 alltid.
+
+**Streckmönster på inskannade blad** (`pipes/representation.py`, `RASTER_TOL.gap_window`). Ett streck-prick-rör
+fogas ihop genom glappen i sitt mönster, och mönstret är den glappstorlek som återkommer i pennan. På en sida läst
+ur bild flyttar pixlarna glappen: samma glapp om 9 pt lästes som 8,75, 9,0 och 9,25 i nästan lika delar, ingen
+enskild storlek nådde andelen ett mönster kräver, och en plan vars rör alla är streck-prick mätte 24 m. På en sida
+läst ur bild räknas glapp inom en halv punkt som samma glapp; samma plan mäter nu 73 m. Vektorsidor räknas som förut.
 
 ### 2e. Det som ska granskas mäts och markeras ändå
 

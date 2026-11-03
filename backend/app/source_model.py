@@ -25,8 +25,10 @@ def configured():
 
 
 class AssignmentTransport:
-    def __init__(self, client, model, style=None, page=None, request_cache=None):
+    def __init__(self, client, model, style=None, page=None, request_cache=None, places=None):
         from .model_request_cache import ModelRequestCache
+        # {label id: [(x, y)]}: where each label and its leader are, so the detail crops show them too
+        self.places = places or {}
         self.request_cache = request_cache if request_cache is not None else ModelRequestCache()
         self.client = client
         self.model = model
@@ -37,10 +39,42 @@ class AssignmentTransport:
         self.page = page
 
     def for_style(self, style):
-        return type(self)(self.client, self.model, style, self.page, self.request_cache)
+        return type(self)(self.client, self.model, style, self.page, self.request_cache, self.places)
 
     def for_page(self, page):
-        return type(self)(self.client, self.model, self.style, (page.source_path, page.info.index), self.request_cache)
+        return type(self)(self.client, self.model, self.style, (page.source_path, page.info.index), self.request_cache,
+                          self.places)
+
+    def with_places(self, places):
+        return type(self)(self.client, self.model, self.style, self.page, self.request_cache, places)
+
+    def _looked_at(self, question):
+        """Every place a question is about: its pipe's points, and each candidate's label and leader ends."""
+        from .drawing_evidence import finite
+        pts = [p for p in question.get('points', []) if finite(p)]
+        for c in question.get('candidates', []):
+            pts.extend(p for p in self.places.get(c.get('label'), ()) if finite(p))
+        return {'points': pts}
+
+    def _zoom_groups(self, questions):
+        """The questions split so that every place each is about lies in one of the request's detail crops.
+
+        A request shows the model the whole sheet and at most DETAIL_TILES zoomed crops. Questions spread over more
+        of the sheet than that were shown only as the overview, where a 2 mm label is a smudge; here they go in
+        consecutive requests instead (neighbours stay together), each sharing the cached instructions and overview.
+        A question that needs more crops than one request holds is asked alone, its busiest places zoomed."""
+        from .drawing_evidence import DETAIL_TILES, cells
+        groups, current, seen = [], [], set()
+        for q in questions:
+            mine = cells([self._looked_at(q)])
+            if current and len(seen | mine) > DETAIL_TILES:
+                groups.append(current)
+                current, seen = [], set()
+            current.append(q)
+            seen |= mine
+        if current:
+            groups.append(current)
+        return groups
 
     def _payload(self, questions):
         """What every model is asked: the instructions, the sheet overview, and the questions with their crops."""
@@ -57,7 +91,7 @@ class AssignmentTransport:
         overview = []
         if self.page and self.page[0] and questions:
             from .drawing_evidence import visual_evidence
-            visual, images = visual_evidence(*self.page, questions)
+            visual, images = visual_evidence(*self.page, [self._looked_at(q) for q in questions])
             # The sheet overview is the same in every request about this page, so it goes first, right after the
             # instructions: the unchanging start of the request is what the provider caches and bills at a fraction.
             # It is sent as a message of its own: the cache matches whole messages, not the start of one.
@@ -124,13 +158,17 @@ class AssignmentTransport:
         return json.loads(response.output_text)[key], record
 
     def __call__(self, questions):
-        system, overview, content, images, aliases = self._payload(questions)
-        decisions, record = self._send(system, overview, content)
-        with self.lock:
-            self.candidate_aliases.extend(aliases)
-            self.usage.append(dict(record, drawing_images=images))
-        if not isinstance(decisions, list):
-            raise ValueError('Invalid assignment response')
+        decisions = []
+        groups = (self._zoom_groups(questions) if self.page and self.page[0] else None) or [questions]
+        for group in groups:
+            system, overview, content, images, aliases = self._payload(group)
+            answered, record = self._send(system, overview, content)
+            with self.lock:
+                self.candidate_aliases.extend(aliases)
+                self.usage.append(dict(record, drawing_images=images, questions=len(group)))
+            if not isinstance(answered, list):
+                raise ValueError('Invalid assignment response')
+            decisions.extend(answered)
         return decisions
 
 

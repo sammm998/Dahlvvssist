@@ -234,6 +234,9 @@ def analyze(graphs,native,page,ask,elevations,raw_page,host_reading=None):
     if ask is None:
         ask=by_rules
     elif hasattr(ask,'for_page'):ask=ask.for_page(raw_page)
+    if ask is not by_rules and hasattr(ask,'with_places'):
+        # the model is shown each candidate's label and both ends of its leader zoomed in, not only the pipe
+        ask=ask.with_places(label_places(native['labels'],native['association']))
     graph=pen_layers(native['graph'])
     result=run(graph,native['labels'],native['association'],native['style'],mode='combined',ask=ask)
     if result['combined']['status']!='COMPLETED' and ask is not by_rules:
@@ -287,6 +290,29 @@ def analyze(graphs,native,page,ask,elevations,raw_page,host_reading=None):
         except Exception as exc:
             result['consistency_review']={'status':'FAILED','reason':type(exc).__name__}
     return ownership,result
+
+
+def label_places(L,R):
+    """{label id: [(x, y)]} - where on the sheet each label and its leader are to be seen.
+
+    A question about a stretch carries the stretch's own points; the label that may name it and the leader that ties
+    them can lie a cell or two away. These are the places the detail crops must also show: both ends of the label
+    box along its length, and both ends of every leader drawn from it (where it leaves the label and where it lands).
+    """
+    import math
+    out={}
+    for l in L:
+        r=l.get('rect')
+        if not r or len(r)<4 or not all(math.isfinite(v) for v in r[:4]):
+            continue
+        x0,y0,x1,y1=r[:4]
+        cx,cy=(x0+x1)/2,(y0+y1)/2
+        out.setdefault(l['id'],[]).extend([(x0,cy),(x1,cy)] if x1-x0>=y1-y0 else [(cx,y0),(cx,y1)])
+    for ld in R.get('leaders',[]) or []:
+        pts=[p for p in (ld.get('points') or []) if len(p)>=2 and math.isfinite(p[0]) and math.isfinite(p[1])]
+        if ld.get('label') is not None and pts:
+            out.setdefault(ld['label'],[]).extend([tuple(pts[0][:2]),tuple(pts[-1][:2])])
+    return out
 
 
 PEN_LAYER='(no CAD layer) pen '
